@@ -1,0 +1,19 @@
+mnist
+
+Select every 20
+
+Validation Accuracies
+|Subset Size (%)|FacLoc|One - Step Taylor|Random|Random Online |CRAIG|Full Data Training|Rand-Reg One-Step|Fac Loc Reg One-Step|
+|10|0.9283333333333333|0.9831666666666666|0.9688333333333333|0.979|0.9|0.9866666666666667|0.982|0.9808333333333333|Facility Location|Taylor with Validation=VAL|Random Selection|Online Random Selection|Taylor after training|random regularized Taylor after training|facloc regularizec Taylor after training|
+|20|0.946|0.9828333333333333|0.9745|0.979|0.8901666666666667|0.9856666666666667|0.9815|0.982|Facility Location|Taylor with Validation=VAL|Random Selection|Online Random Selection|Taylor after training|random regularized Taylor after training|facloc regularizec Taylor after training|
+|30|0.9636666666666667|0.9871666666666666|0.9793333333333333|0.9858333333333333|0.8985|0.9861666666666666|0.9846666666666667|0.9861666666666666|Facility Location|Taylor with Validation=VAL|Random Selection|Online Random Selection|Taylor after training|random regularized Taylor after training|facloc regularizec Taylor after training|
+|40|0.97|0.985|0.9803333333333333|0.9853333333333333|0.9043333333333333|0.9885|0.9876666666666667|0.9871666666666666|Facility Location|Taylor with Validation=VAL|Random Selection|Online Random Selection|Taylor after training|random regularized Taylor after training|facloc regularizec Taylor after training|
+|50|0.9801666666666666|0.9865|0.9846666666666667|0.9838333333333333|0.907|0.9861666666666666|0.9866666666666667|0.9881666666666666|Facility Location|Taylor with Validation=VAL|Random Selection|Online Random Selection|Taylor after training|random regularized Taylor after training|facloc regularizec Taylor after training|
+
+Test Accuracies
+|Subset Size (%)|FacLoc|One - Step Taylor|Random|Random Online |CRAIG|Full Data Training|Rand-Reg One-Step|Fac Loc Reg One-Step|
+|10|0.9298|0.9841|0.9707|0.9803|0.9055|0.9871|0.9825|0.9812|1976.110625|5791.1575|1961.6735|1767.368125|1935.418375|3999.0505|9418.116|
+|20|0.9541|0.9851|0.9767|0.9824|0.9051|0.9878|0.9841|0.9843|2675.47775|6781.5665|1732.209125|1786.007125|2371.0755|7070.173|13627.036|
+|30|0.9674|0.9854|0.982|0.9855|0.9068|0.9876|0.9854|0.9861|1333.5765|10272.722|1240.04725|1242.11775|1146.200375|7140.9255|25586.622|
+|40|0.9755|0.9877|0.9836|0.9864|0.9088|0.988|0.9859|0.9869|1413.121375|9647.147|1417.02275|1377.6135|1221.5685|8938.565|33777.568|
+|50|0.9798|0.9865|0.985|0.986|0.9089|0.9866|0.9859|0.9864|1540.435|12106.679|1494.2645|1441.080625|1189.1635|11124.687|49755.62|

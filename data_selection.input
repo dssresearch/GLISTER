@@ -1,0 +1,43 @@
+{
+    "dataset_train" : [
+      "./data/dna/dna.scale.trn.trf",
+      "./data/digits/digits.trn.trf",
+      "./data/satimage/satimage.scale.trn.trf",
+      "./data/svmguide1/svmguide1.trn_full.trn.trf"
+    ],  
+    "dataset_validation" : [
+      "./data/dna/dna.scale.val.trf",
+      "./data/digits/digits.val.trf",
+      "./data/satimage/satimage.scale.val.trf",
+      "./data/svmguide1/svmguide1.trn_full.val.trf"
+    ], 
+    "dataset_test" : [" "
+    ],
+    "budgets" : [
+        0.2, 
+        0.4, 
+        0.6
+    ],  
+    "executables" : [
+        "/home/ninad/Desktop/Docs/devel-github/datk/build/KNNSubmod"
+    ],
+    "dataset_type" : [
+        "continuous",
+        "continuous",
+        "continuous",
+        "continuous"        
+    ],
+    "dataset_names" : [
+        "dna",
+        "digits",
+        "satimage",
+        "svmguide1"
+    ],
+    "run_path" : "./run_data/",
+    "dataset_type" : [
+        "discrete"
+    ],
+    "dataset_names" : [
+        "mnist_bin"
+    ]
+}

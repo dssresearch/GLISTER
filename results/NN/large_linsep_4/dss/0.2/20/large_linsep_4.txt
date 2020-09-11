@@ -1,0 +1,2 @@
+=======================================
+large_linsep_4_fraction:0.2_epochs:200_selEvery:20_variant0_runs1 2020-09-08 06:43:55.697638

@@ -1,0 +1,6 @@
+../submodinfo/
+data/
+*a.out
+backup/
+run_data/
+*__pycache__*

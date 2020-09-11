@@ -1,0 +1,38 @@
+=======================================
+large_linsep_4_fraction:0.05_epochs:200_selEvery:20_variant0_runs1 2020-09-08 07:02:44.519332
+large_linsep_4 :Budget =  0.05
+---------------------------------------------------------------------
+|Algo                            | Val Acc       |   Test Acc       |
+| -------------------------------|:-------------:| ----------------:|
+*| KNN SUBMOD           | 99.9   |  99.95  |
+*| Taylor with Validation=VAL     | 99.9   |  99.8  |
+*| Random Selection               | 99.9   |  99.75  |
+*| CRAIG Selection               | 99.9   |  99.95  |
+*| Full Training               | 99.9   |  99.95  |
+*| random regularized Taylor after training               | 99.9   |  99.95  |
+
+
+=========Random Results==============
+*Rand Validation LOSS: 0.3362971246242523
+*Rand Test Data LOSS: 0.34205910563468933
+*Rand Full Trn Data LOSS: 0.3376651406288147
+=========CRAIG Results==============
+*CRAIG Validation LOSS: 0.3365958333015442
+*CRAIG Test Data LOSS: 0.34235450625419617
+*CRAIG Full Trn Data LOSS: 0.337895929813385
+=========FacLoc Results==============
+*Facloc Validation LOSS: 0.3388771116733551
+*Facloc Test Data LOSS: 0.34442052245140076
+*Facloc Full Trn Data LOSS: 0.3400973975658417
+=========Online Selection Taylor with Validation Set===================
+*Taylor v=VAL Validation LOSS: 0.3457843065261841
+*Taylor v=VAL Test Data LOSS: 0.353414386510849
+*Taylor v=VAL Full Trn Data LOSS: 0.3478570282459259
+=========Random Regularized Online Selection Taylor with Validation Set===================
+*Taylor v=VAL Validation LOSS: 0.3356431722640991
+*Taylor v=VAL Test Data LOSS: 0.34293633699417114
+*Taylor v=VAL Full Trn Data LOSS: 0.3375217020511627
+=============================================================================================
+---------------------------------------------------------------------------------------------
+
+

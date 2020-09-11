@@ -1,0 +1,18 @@
+{
+    "indices_file" : "/glusterfs/data/data_subset_selection/augmented_data/subset_data/subset_with_train/KNNSubmod_cifar10_cont/KNNSubmod_25.subset",
+    "logfile_path" : "/home/axd170033/datk-codebase/datk/data-selection/cnnlog/KNNSubmod_cifar10_cont_full/cifar10_no_augment_fulldataset_coderesnet18.txt",
+    "checkpoint" : "KNNSubmod_cifar10_cont_full_dataset_150.pth",
+    "checkpoint_save_name" : "cifar10_no_augment_full_dataset_coderesnet18",
+    "learning_rate" : 0.1,
+    "momentum_rate" : 0,
+    "num_epoch" : 201,
+    "resume" : 0,
+    "full_dataset" : 0,
+    "random_subset" : 0,
+    "current_budget" : 0.25,
+    "pytorch_dataset" : "cifar10",
+    "num_classes" : 10,
+    "is_augmented_data" : 0,
+    "use_subset" : 0,
+    "augmented_data_path" : "/glusterfs/data/data_subset_selection/augmented_data/cifar10/cifar10_4X_full_dataset_augmented.pt"
+}

@@ -1,0 +1,48 @@
+=======================================
+svmguide1_fraction:0.7_epochs:200_selEvery:20_variant0_runs1 2020-09-06 12:03:57.595249
+svmguide1 :Budget =  0.7
+---------------------------------------------------------------------
+|Algo                            | Val Acc       |   Test Acc       |
+| -------------------------------|:-------------:| ----------------:|
+*| Supervised Facility Location with Validation=VAL     | 87.87878787878788   |  86.075  |
+*| Supervised Facility Location with Validation=TRN     | 87.87878787878788   |  86.075  |
+*| Taylor with Validation=VAL     | 87.87878787878788   |  85.375  |
+*| Random Selection               | 86.86868686868686   |  87.55  |
+*| CRAIG Selection               | 89.39393939393939   |  89.35  |
+*| Full Training               | 89.8989898989899   |  89.4  |
+*| random regularized Taylor after training               | 89.8989898989899   |  88.85  |
+*| facloc regularizec Taylor after training               | 49.494949494949495   |  48.475  |
+
+
+=========Random Results==============
+*Rand Validation LOSS: 0.5861420035362244
+*Rand Test Data LOSS: 0.5862355828285217
+*Rand Full Trn Data LOSS: 0.6859420537948608
+=========CRAIG Results==============
+*CRAIG Validation LOSS: 0.6076114773750305
+*CRAIG Test Data LOSS: 0.606685996055603
+*CRAIG Full Trn Data LOSS: 0.6847358345985413
+=========Supervised FacLoc Results with Validation=VAL==============
+*Facloc Validation LOSS: 0.6290376782417297
+*Facloc Test Data LOSS: 0.6288366913795471
+*Facloc Full Trn Data LOSS: 0.6854358911514282
+=========Supervised FacLoc Results with Validation=TRN==============
+*Facloc Validation LOSS: 0.6290376782417297
+*Facloc Test Data LOSS: 0.6288366913795471
+*Facloc Full Trn Data LOSS: 0.6854358911514282
+=========Online Selection Taylor with Validation Set===================
+*Taylor v=VAL Validation LOSS: 0.5218742489814758
+*Taylor v=VAL Test Data LOSS: 0.5195813179016113
+*Taylor v=VAL Full Trn Data LOSS: 0.7030830383300781
+=========Random Regularized Online Selection Taylor with Validation Set===================
+*Taylor v=VAL Validation LOSS: 0.5442962050437927
+*Taylor v=VAL Test Data LOSS: 0.542119562625885
+*Taylor v=VAL Full Trn Data LOSS: 0.6941660046577454
+=========Facility Location Loss regularized Online Selection Taylor with Validation Set===================
+*Taylor v=VAL Validation LOSS: 0.7504136562347412
+*Taylor v=VAL Test Data LOSS: 0.7475363612174988
+*Taylor v=VAL Full Trn Data LOSS: 0.7337672114372253
+=============================================================================================
+---------------------------------------------------------------------------------------------
+
+

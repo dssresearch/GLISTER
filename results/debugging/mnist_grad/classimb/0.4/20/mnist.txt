@@ -1,0 +1,59 @@
+=======================================
+mnist_fraction:0.4_epochs:100_selEvery:20_variant0_runs1 2020-09-05 11:36:59.390456
+mnist :Budget =  0.4
+---------------------------------------------------------------------
+|Algo                            | Val Acc       |   Test Acc       |
+| -------------------------------|:-------------:| ----------------:|
+*| Facility Location             | 0.9404651162790698   |  0.9418  |
+*| Taylor with Validation=VAL     | 0.9858139534883721   |  0.9782  |
+*| Random Selection               | 0.9723255813953489   |  0.9691  |
+*| Random with Fixed Prior Selection               | 0.9830232558139534   |  0.9779  |
+*| Online Random Selection               | 0.9767441860465116   |  0.9717  |
+*| CRAIG Selection               | 0.8413953488372093   |  0.8502  |
+*| Taylor after training               | 0.9818604651162791   |  0.9749  |
+*| random regularized Taylor after training               | 0.9834883720930233   |  0.9785  |
+*| facloc regularizec Taylor after training               | 0.9848837209302326   |  0.9761  |
+---------------------------------------------------
+|Algo                            | Run Time       |
+| -------------------------------|:-------------:|
+*| Facility Location             | 845.4579375   | 
+*| Taylor with Validation=VAL     | 3693.8045   | 
+*| Random Selection               | 848.4235   | 
+*| Online Random Selection               | 829.872375   | 
+*| Taylor after training               | 809.245   | 
+*| random regularized Taylor after training               | 3460.55575  |
+*| facloc regularizec Taylor after training               | 11162.661   | 
+
+
+=========Random Results==============
+*Rand Validation LOSS: 1.0525972694158554
+*Rand Test Data LOSS: 2.2590539269149303
+*Rand Full Trn Data LOSS: 152.0587439273786
+=========Online Random Results==============
+*Rand Validation LOSS: 0.5890894904732704
+*Rand Test Data LOSS: 1.5114177837967873
+*Rand Full Trn Data LOSS: 37.30145551362216
+=========FacLoc Results==============
+*Facloc Validation LOSS: 1.9856592118740082
+*Facloc Test Data LOSS: 4.129861980676651
+*Facloc Full Trn Data LOSS: 340.2047722508316
+=========Online Selection Taylor with Validation Set===================
+*Taylor v=VAL Validation LOSS: 0.4144602045416832
+*Taylor v=VAL Test Data LOSS: 1.1571623850613832
+*Taylor v=VAL Full Trn Data LOSS: 34.69608372008997
+=========Random Regularized Online Selection Taylor with Validation Set===================
+*Taylor v=VAL Validation LOSS: 0.3818562775850296
+*Taylor v=VAL Test Data LOSS: 1.1845286190509796
+*Taylor v=VAL Full Trn Data LOSS: 28.634091403083225
+=========Facility Location Loss regularized Online Selection Taylor with Validation Set===================
+*Taylor v=VAL Validation LOSS: 0.3220819719135761
+*Taylor v=VAL Test Data LOSS: 1.5179047137498856
+*Taylor v=VAL Full Trn Data LOSS: 15.077049630468686
+=========Online Selection Taylor after model training with Validation Set===================
+*Taylor v=VAL Validation LOSS: 0.5416915342211723
+*Taylor v=VAL Test Data LOSS: 1.7734188325703144
+*Taylor v=VAL Full Trn Data LOSS: 0.0
+=============================================================================================
+---------------------------------------------------------------------------------------------
+
+
