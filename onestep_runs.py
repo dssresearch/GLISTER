@@ -2,20 +2,20 @@ import subprocess
 
 datadir = './data/'
 #datasets = ['sklearn-digits', 'dna','satimage','svmguide1']
-#datasets = ['dna']
+datasets = ['dna']
 #datasets = ['svmguide1']
 #datasets = ['ijcnn1']
 #datasets = ['letter']
 #datasets = ['usps']
-datasets = ['connect_4']
+#datasets = ['connect_4']
 #datasets = ['shuttle']
-fracs =[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+fracs =[0.3,0.5]#0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 #fracs =[ 0.4,0.5,0.6,0.7,0.8,0.9]
 num_epochs = 200
 select_every = [20]#,35,50]
 warm_method = [0]   # 0 = online, 1 = onestep warmstart
 num_runs = 10
-feature = ['dss','noise']#,'classimb']
+feature = ['dss']#,'noise']#,'classimb']
 #feature = ['noise']
 #feature = ['classimb']#,'noise']
 for dset in datasets:

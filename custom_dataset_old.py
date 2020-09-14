@@ -276,6 +276,7 @@ def load_dataset_pytorch(datadir, dset_name,device):
 
         return fullset, valset, testset, data_dims, num_cls
 
+
     elif dset_name == "connect_4":
         trn_file = os.path.join(datadir, 'connect_4.trn')
 
@@ -613,6 +614,88 @@ def load_dataset_numpy(datadir, dset_name, feature=None):
         testset = (x_tst, y_tst)
         return fullset, valset, testset, num_cls
 
+    elif dset_name == "adult":
+        trn_file = os.path.join(datadir, 'a9a.trn')
+        tst_file = os.path.join(datadir, 'a9a.tst')
+        data_dims = 123
+        num_cls = 2
+        x_trn, y_trn = libsvm_file_load(trn_file, dim=data_dims)
+        x_tst, y_tst = libsvm_file_load(tst_file, dim=data_dims)
+        
+        y_trn[y_trn < 0] = 0
+        y_tst[y_tst < 0] = 0
+
+        x_trn, x_val, y_trn, y_val = train_test_split(x_trn, y_trn, test_size=0.1, random_state=42)
+        
+        sc = StandardScaler()
+        x_trn = sc.fit_transform(x_trn)
+        x_val = sc.transform(x_val)
+        x_tst = sc.transform(x_tst)
+
+        if feature == 'classimb':
+            samples_per_class = np.zeros(num_cls)
+            val_samples_per_class = np.zeros(num_cls)
+            tst_samples_per_class = np.zeros(num_cls)
+            for i in range(num_cls):
+                samples_per_class[i] = len(np.where(y_trn == i)[0])
+                val_samples_per_class[i] = len(np.where(y_val == i)[0])
+                tst_samples_per_class[i] = len(np.where(y_tst == i)[0])
+            min_samples = int(np.min(samples_per_class) * 0.1)
+            selected_classes = np.random.choice(np.arange(num_cls), size=int(0.3 * num_cls), replace=False)
+            for i in range(num_cls):
+                if i == 0:
+                    if i in selected_classes:
+                        subset_idxs = np.random.choice(np.where(y_trn == i)[0], size=min_samples, replace=False)
+                    else:
+                        subset_idxs = np.where(y_trn == i)[0]
+                    x_trn_new = x_trn[subset_idxs]
+                    y_trn_new = y_trn[subset_idxs].reshape(-1, 1)
+                else:
+                    if i in selected_classes:
+                        subset_idxs = np.random.choice(np.where(y_trn == i)[0], size=min_samples, replace=False)
+                    else:
+                        subset_idxs = np.where(y_trn == i)[0]
+                    x_trn_new = np.row_stack((x_trn_new, x_trn[subset_idxs]))
+                    y_trn_new = np.row_stack((y_trn_new, y_trn[subset_idxs].reshape(-1, 1)))
+            max_samples = int(np.max(val_samples_per_class))
+            for i in range(num_cls):
+                y_class = np.where(y_val == i)[0]
+                if i == 0:
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_val_new = np.row_stack((x_val,x_val[subset_ids]))
+                    y_val_new = np.row_stack((y_val.reshape(-1, 1),y_val[subset_ids].reshape(-1, 1)))
+                else:
+                    subset_ids = np.random.choice(y_class, size=max_samples- y_class.shape[0], replace=True)
+                    x_val_new = np.row_stack((x_val,x_val_new, x_val[subset_ids]))
+                    y_val_new = np.row_stack((y_val.reshape(-1, 1),y_val_new, y_val[subset_ids].reshape(-1, 1)))
+            max_samples = int(np.max(tst_samples_per_class))
+            for i in range(num_cls):
+                y_class = np.where(y_tst == i)[0]
+                if i == 0:
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_tst_new = np.row_stack((x_tst,x_tst[subset_ids]))
+                    y_tst_new = np.row_stack((y_tst.reshape(-1, 1),y_tst[subset_ids].reshape(-1, 1)))
+                else:
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_tst_new = np.row_stack((x_tst,x_tst_new, x_tst[subset_ids]))
+                    y_tst_new = np.row_stack((y_tst.reshape(-1, 1),y_tst_new, y_tst[subset_ids].reshape(-1, 1)))
+
+            x_val = x_val_new
+            y_val = y_val_new.reshape(-1)
+            x_tst = x_tst_new
+            y_tst = y_tst_new.reshape(-1)
+            y_trn = y_trn_new.reshape(-1)
+            x_trn = x_trn_new
+        elif feature == 'noise':
+            noise_size = int(len(y_trn) * 0.8)
+            noise_indices = np.random.choice(np.arange(len(y_trn)), size=noise_size, replace=False)
+            y_trn[noise_indices] = np.random.choice(np.arange(num_cls), size=noise_size, replace=True)
+
+        fullset = (x_trn, y_trn)
+        valset = (x_val, y_val)
+        testset = (x_tst, y_tst)
+        return fullset, valset, testset, num_cls
+
     elif dset_name == "shuttle":
         trn_file = os.path.join(datadir, 'shuttle.trn')
         val_file = os.path.join(datadir, 'shuttle.val')
@@ -752,21 +835,26 @@ def load_dataset_numpy(datadir, dset_name, feature=None):
             min_samples = int(np.min(val_samples_per_class))
             for i in range(num_cls):
                 if i == 0:
-                    subset_ids = np.random.choice(np.where(y_val == i)[0], size=min_samples, replace=False)
+                    y_class = np.where(y_val == i)[0]
+                    subset_ids = np.random.choice(y_class, size=min_samples, replace=False)
                     x_val_new = x_val[subset_ids]
                     y_val_new = y_val[subset_ids].reshape(-1, 1)
                 else:
-                    subset_ids = np.random.choice(np.where(y_val == i)[0], size=min_samples, replace=False)
+                    y_class = np.where(y_val == i)[0]
+                    subset_ids = np.random.choice(y_class, size=min_samples, replace=False)
                     x_val_new = np.row_stack((x_val_new, x_val[subset_ids]))
                     y_val_new = np.row_stack((y_val_new, y_val[subset_ids].reshape(-1, 1)))
+            
             min_samples = int(np.min(tst_samples_per_class))
             for i in range(num_cls):
                 if i == 0:
-                    subset_ids = np.random.choice(np.where(y_tst == i)[0], size=min_samples, replace=False)
+                    y_class = np.where(y_tst == i)[0]
+                    subset_ids = np.random.choice(y_class, size=min_samples, replace=False)
                     x_tst_new = x_tst[subset_ids]
                     y_tst_new = y_tst[subset_ids].reshape(-1, 1)
                 else:
-                    subset_ids = np.random.choice(np.where(y_tst == i)[0], size=min_samples, replace=False)
+                    y_class = np.where(y_tst == i)[0] #min(3*min_samples,y_class.shape[0])
+                    subset_ids = np.random.choice(y_class, size=min_samples, replace=False)
                     x_tst_new = np.row_stack((x_tst_new, x_tst[subset_ids]))
                     y_tst_new = np.row_stack((y_tst_new, y_tst[subset_ids].reshape(-1, 1)))
 
@@ -1183,30 +1271,28 @@ def load_dataset_numpy(datadir, dset_name, feature=None):
                     x_trn_new = np.row_stack((x_trn_new, x_trn[subset_idxs]))
                     y_trn_new = np.row_stack((y_trn_new, y_trn[subset_idxs].reshape(-1, 1)))
 
-            min_samples = int(np.min(val_samples_per_class))
+            max_samples = int(np.max(val_samples_per_class))
             for i in range(num_cls):
+                y_class = np.where(y_val == i)[0]
                 if i == 0:
-                    y_class = np.where(y_val == i)[0]
-                    subset_ids = np.random.choice(y_class, size=min(3*min_samples,y_class.shape[0]), replace=False)
-                    x_val_new = x_val[subset_ids]
-                    y_val_new = y_val[subset_ids].reshape(-1, 1)
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_val_new = np.row_stack((x_val,x_val[subset_ids]))
+                    y_val_new = np.row_stack((y_val.reshape(-1, 1),y_val[subset_ids].reshape(-1, 1)))
                 else:
-                    y_class = np.where(y_val == i)[0]
-                    subset_ids = np.random.choice(y_class, size=min(3*min_samples,y_class.shape[0]), replace=False)
-                    x_val_new = np.row_stack((x_val_new, x_val[subset_ids]))
-                    y_val_new = np.row_stack((y_val_new, y_val[subset_ids].reshape(-1, 1)))
-            min_samples = int(np.min(tst_samples_per_class))
+                    subset_ids = np.random.choice(y_class, size=max_samples- y_class.shape[0], replace=True)
+                    x_val_new = np.row_stack((x_val,x_val_new, x_val[subset_ids]))
+                    y_val_new = np.row_stack((y_val.reshape(-1, 1),y_val_new, y_val[subset_ids].reshape(-1, 1)))
+            max_samples = int(np.max(tst_samples_per_class))
             for i in range(num_cls):
+                y_class = np.where(y_tst == i)[0]
                 if i == 0:
-                    y_class = np.where(y_tst == i)[0]
-                    subset_ids = np.random.choice(y_class, size=min(3*min_samples,y_class.shape[0]), replace=False)
-                    x_tst_new = x_tst[subset_ids]
-                    y_tst_new = y_tst[subset_ids].reshape(-1, 1)
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_tst_new = np.row_stack((x_tst,x_tst[subset_ids]))
+                    y_tst_new = np.row_stack((y_tst.reshape(-1, 1),y_tst[subset_ids].reshape(-1, 1)))
                 else:
-                    y_class = np.where(y_tst == i)[0]
-                    subset_ids = np.random.choice(y_class, size=min(3*min_samples,y_class.shape[0]), replace=False)
-                    x_tst_new = np.row_stack((x_tst_new, x_tst[subset_ids]))
-                    y_tst_new = np.row_stack((y_tst_new, y_tst[subset_ids].reshape(-1, 1)))
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_tst_new = np.row_stack((x_tst,x_tst_new, x_tst[subset_ids]))
+                    y_tst_new = np.row_stack((y_tst.reshape(-1, 1),y_tst_new, y_tst[subset_ids].reshape(-1, 1)))
 
             x_val = x_val_new
             y_val = y_val_new

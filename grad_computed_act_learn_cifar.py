@@ -8,6 +8,9 @@ import time
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
+import torch.nn.functional as F
+from torch.autograd import Variable
+from torch.utils.data import DataLoader
 import torch.optim as optim
 from matplotlib import pyplot as plt
 from models.set_function_all import SetFunctionFacLoc
@@ -20,6 +23,11 @@ import math
 from models.resnet import ResNet18
 from utils.data_utils import load_dataset_pytorch
 from torch.utils.data import random_split, SequentialSampler, BatchSampler, RandomSampler
+from torch.distributions import Categorical
+
+import sys
+sys.path.append('./badge/')
+from badge.my_run import return_accuracies
 
 def model_eval_loss(data_loader, model, criterion):
     total_loss = 0
@@ -63,7 +71,8 @@ data_name = sys.argv[2]
 fraction = float(sys.argv[3])
 num_epochs = int(sys.argv[4])
 no_select = int(sys.argv[5])
-feature = sys.argv[6]
+warm_method = sys.argv[6]
+num_runs = sys.argv[7]
 print_every = 50
 
 learning_rate = 0.05
@@ -85,7 +94,7 @@ if data_name == 'cifar10':
     num_fulltrn = len(fullset)
     num_val = int(num_fulltrn * validation_set_fraction)
     num_trn = num_fulltrn - num_val
-    trainset, validset = random_split(fullset, [num_trn, num_val],generator=torch.Generator().manual_seed(42))
+    trainset, validset = random_split(fullset, [num_trn, num_val])#,generator=torch.Generator().manual_seed(42))
     trn_batch_size = 128
     val_batch_size = 1000
     tst_batch_size = 1000
@@ -103,6 +112,7 @@ if data_name == 'cifar10':
     trainset_idxs = np.array(trainset.indices)
     batch_wise_indices = trainset_idxs[list(BatchSampler(SequentialSampler(trainset_idxs), 1000, drop_last=False))]
     cnt = 0
+    
     for batch_idx in batch_wise_indices:
         inputs = torch.cat([fullset[x][0].view(1, -1) for x in batch_idx],
                            dim=0).type(torch.float)
@@ -143,21 +153,22 @@ print("Data sizes:", x_trn.shape, x_val.shape, x_tst.shape)
 
 def perform_knnsb_selection(datadir, dset_name,remain, budget, selUsing):
 
-    trndata = np.c_[x_trn.cpu()[remain].view(remain, -1), y_trn.cpu()[remain]]
+
+    trndata = np.c_[x_trn.cpu()[remain].view(len(remain), -1), y_trn.cpu()[remain]]
     # Write out the trndata
-    trn_filepath = os.path.join(datadir, 'act_'+feature+'_knn_' + dset_name + '.trn')
+    trn_filepath = os.path.join(datadir, 'act_'+'_knn_' + dset_name + '.trn')
     np.savetxt(trn_filepath, trndata, fmt='%.6f')
     
     run_path = './run_data/'
     output_dir = run_path + 'KNNSubmod_' + dset_name + '/'
-    indices_file = output_dir + 'act_'+feature+'_KNNSubmod_' + str((int)(budget*100)) + ".subset"
+    indices_file = output_dir + 'act_'+'_KNNSubmod_' + str((int)(budget*100)) + ".subset"
 
     if selUsing == 'val':
-        val_filepath = os.path.join(datadir, feature+'_knn_' + dset_name + '.val')
+        val_filepath = os.path.join(datadir, 'knn_' + dset_name + '.val')
     else:
         val_filepath = trn_filepath
 
-    subprocess.call(["mkdir", output_dir])
+    subprocess.call(["mkdir","-p", output_dir])
     knnsb_args = []
     knnsb_args.append('../build/KNNSubmod')
     knnsb_args.append(trn_filepath)
@@ -226,7 +237,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     criterion_nored = nn.CrossEntropyLoss(reduction='none')
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
 
-    remainList = set(trainset.indices)
+    remainList = set([i for i in range(N)])
     idxs = list(idxs)
     remainList = remainList.difference(idxs)
 
@@ -344,11 +355,11 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
                     y_rem_trn = rem_predict
                     cnt = cnt + 1
                 else:
-                    y_rem_trn = torch.cat([y_trn, rem_predict], dim=0)
+                    y_rem_trn = torch.cat([y_rem_trn, rem_predict], dim=0)
                 
                 correct += rem_predict.eq(targets).sum().item()
                 total += targets.size(0)
-            rem_acc = 100 * rem_correct / rem_total
+            rem_acc = 100 * correct / total
 
         val_accies[n] = val_acc
         test_accies[n] = tst_acc
@@ -460,7 +471,7 @@ def act_learn_online(function,start_rand_idxs, bud,lam=0.9):
     setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
                              criterion_nored, learning_rate, device, num_cls, 1000)
     print("Starting Greedy Online OneStep Run with taylor!")
-    remainList = set(trainset.indices)
+    remainList = set([i for i in range(N)])
     idxs = list(idxs)
     remainList = remainList.difference(idxs)
 
@@ -607,7 +618,7 @@ def facloc_reg_train_model_online_taylor(start_rand_idxs, facloc_idxs, bud, lam)
                              criterion_nored, learning_rate, device, num_cls, 1000)
     print("Starting Facloc regularized Greedy Online OneStep Run with taylor!")
 
-    remainList = set(trainset.indices)
+    remainList = set([i for i in range(N)])
     idxs = list(idxs)
     remainList = remainList.difference(idxs)
 
@@ -728,9 +739,9 @@ def facloc_reg_train_model_online_taylor(start_rand_idxs, facloc_idxs, bud, lam)
 
 
 
-start_idxs = np.random.choice(N, size=bud, replace=False)
+start_idxs = np.random.choice(N, size=no_points, replace=False)
 random_subset_idx = [trainset.indices[x] for x in start_idxs]
-facility_loaction_warm_start = random_subset_idx
+facility_loaction_warm_start = start_idxs
 #run_stochastic_Facloc(x_trn, y_trn, no_points)
 #facloc_idxs = [trainset.indices[x] for x in facloc_idxs]
 
@@ -740,7 +751,7 @@ facility_loaction_warm_start = random_subset_idx
 kva, kta,kua, knn_subset_idx = active_learning_taylor('FASS',facility_loaction_warm_start)
 #Badge
 bva, bta,bua, badge_subset_idx = return_accuracies(facility_loaction_warm_start ,no_select-1,no_points,num_epochs,\
-    learning_rate,datadir,data_name,feature)
+    learning_rate,datadir,data_name,'dss')
 # Random Run
 rva, rta,rua, random_subset_idx= active_learning_taylor('Random',facility_loaction_warm_start )
 # Online algo run
@@ -836,11 +847,11 @@ print("=======================================", file=logfile)
 print(exp_name, str(exp_start_time), file=logfile)
 print(data_name,":Budget = ", fraction, file=logfile)
 
-methods=["One Step Taylor",'Rand Reg One Step','Facility Location','FASS',\
-'Random',"BADGE"] #,"Full One Step" #'One step Perturbation' #,'Fac Loc Reg One Step'
-val_acc =[t_va,rand_t_va,fva,kva,rva,bva] #,ft_va #facloc_reg_t_va,
-tst_acc =[t_ta,rand_t_ta,fva,kta,rta,bta] #,ft_ta #facloc_reg_t_ta,
-unlabel_acc =[t_ua,rand_t_ua,fua,kua,rua,bua] #,ft_ua #facloc_reg_t_ua
+methods=["One Step Taylor",'Rand Reg One Step','FASS',\
+'Random',"BADGE"] #,"Full One Step" #'One step Perturbation' #,'Fac Loc Reg One Step' #'Facility Location'
+val_acc =[t_va,rand_t_va,kva,rva,bva] #,ft_va #facloc_reg_t_va, #fva,
+tst_acc =[t_ta,rand_t_ta,kta,rta,bta] #,ft_ta #facloc_reg_t_ta, fva,
+unlabel_acc =[t_ua,rand_t_ua,kua,rua,bua] #,ft_ua #facloc_reg_t_ua fua,
 
 print("Validation Accuracy",file=logfile)
 print('---------------------------------------------------------------------',file=logfile)

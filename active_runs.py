@@ -3,7 +3,7 @@ import subprocess
 datadir = './data/'
 #datasets = ['sklearn-digits', 'dna','satimage','svmguide1']
 # datasets = ['dna']
-datasets = ['mnist']
+datasets = ['covertype']
 # datasets = ['ijcnn1']
 fracs = [0.1, 0.2, 0.3, 0.4, 0.5]
 num_epochs = 200

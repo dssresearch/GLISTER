@@ -80,7 +80,7 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
     random.seed(42)
     torch.backends.cudnn.deterministic = True
 
-    if data_name in ['dna','sklearn-digits','satimage','svmguide1','letter','shuttle','ijcnn1','sensorless','connect_4','sensit_seismic','usps']:
+    if data_name in ['dna','sklearn-digits','satimage','svmguide1','letter','shuttle','ijcnn1','sensorless','connect_4','sensit_seismic','usps','adult']:
         fullset, valset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
         write_knndata_old(datadir, data_name,feature=feature)
     elif data_name == 'cifar10':

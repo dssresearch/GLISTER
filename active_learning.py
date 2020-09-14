@@ -62,7 +62,7 @@ print(exp_name)
 exp_start_time = datetime.datetime.now()
 
 
-if data_name in ['dna','sklearn-digits','satimage','svmguide1','letter','shuttle','ijcnn1','sensorless','connect_4','sensit_seismic','usps']:
+if data_name in ['dna','sklearn-digits','satimage','svmguide1','letter','shuttle','ijcnn1','sensorless','connect_4','sensit_seismic','usps','adult']:
     fullset, valset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
     write_knndata_old(datadir, data_name,feature=feature)
 elif data_name in ['mnist' , "fashion-mnist"]:
@@ -184,6 +184,28 @@ def gen_rand_prior_indices(remainset, size):
 
 facility_loaction_warm_start = []
 
+def run_stochastic_Facloc(data, targets, budget):
+    model = TwoLayerNet(M, num_cls, 100)
+    model = model.to(device)
+    approximate_error = 0.01
+    per_iter_bud = 10
+    num_iterations = int(budget/10)
+    facloc_indices = []
+    trn_indices = list(np.arange(len(data)))
+    sample_size = int(len(data) / num_iterations * math.log(1 / approximate_error))
+    #greedy_batch_size = 1200
+    for i in range(num_iterations):
+        rem_indices = list(set(trn_indices).difference(set(facloc_indices)))
+        sub_indices = np.random.choice(rem_indices, size=sample_size, replace=False)
+        data_subset = data[sub_indices].cpu()
+        targets_subset = targets[sub_indices].cpu()
+        train_loader_greedy = []
+        train_loader_greedy.append((data_subset, targets_subset))
+        setf_model = SetFunctionFacLoc(device, train_loader_greedy)
+        idxs = setf_model.lazy_greedy_max(per_iter_bud, model)
+        facloc_indices.extend([sub_indices[idx] for idx in idxs])
+    return facloc_indices
+
 def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,fac_loc_idx=None):
     
     torch.manual_seed(42)
@@ -216,7 +238,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     if func_name == 'Full OneStep':
         setf_model = SetFunctionBatch(x_val, y_val, model, criterion, criterion_nored, learning_rate, device)
 
-    elif func_name == 'Facility Location':
+    elif func_name == 'Facility Location' and data_name != 'covertype':
         setf_model = SetFunctionFacLoc(device, train_batch_size_for_greedy)
         idxs = setf_model.lazy_greedy_max(bud, x_trn,model)
         facility_loaction_warm_start = copy.deepcopy(idxs)
@@ -428,7 +450,10 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
 
         elif func_name == 'Facility Location':
 
-            new_idxs = setf_model.lazy_greedy_max(bud, curr_X_trn ,model)
+            if data_name == 'covertype':
+                new_idxs = run_stochastic_Facloc(curr_X_trn, y_rem_trn, bud)
+            else:
+                new_idxs = setf_model.lazy_greedy_max(bud, curr_X_trn ,model)
             new_idxs = np.array(list(remainList))[new_idxs]
 
             remainList = remainList.difference(new_idxs)

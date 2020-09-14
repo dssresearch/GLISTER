@@ -39,7 +39,7 @@ feature = sys.argv[6]# 70
 warm_method = 0  # whether to use warmstart-onestep (1) or online (0)
 num_runs = 1  # number of random runs
 learning_rate = 0.05
-all_logs_dir = './results/NN/' + data_name + '/' + feature + '/' + str(fraction) + '/' + str(select_every)
+all_logs_dir = './results/LR/' + data_name + '/' + feature + '/' + str(fraction) + '/' + str(select_every)
 print(all_logs_dir)
 subprocess.run(["mkdir", "-p", all_logs_dir])
 path_logfile = os.path.join(all_logs_dir, data_name + '.txt')
@@ -405,8 +405,8 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
     classes,count = torch.unique(val_predict,return_counts=True)
     print(count)
 
-    #val_pre = precision_score(y_val.cpu(), val_predict.cpu())
-    #val_recall = recall_score(y_val.cpu(), val_predict.cpu())
+    val_pre = precision_score(y_val.cpu(), val_predict.cpu())
+    val_recall = recall_score(y_val.cpu(), val_predict.cpu())
 
     correct = 0
     total = 0
@@ -422,15 +422,15 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
     classes,count = torch.unique(predicted,return_counts=True)
     print(count)
 
-    #tst_pre = precision_score(y_tst.cpu(), predicted.cpu())
-    #tst_recall = recall_score(y_tst.cpu(), predicted.cpu())
+    tst_pre = precision_score(y_tst.cpu(), predicted.cpu())
+    tst_recall = recall_score(y_tst.cpu(), predicted.cpu())
 
     print("SelectionRun---------------------------------")
     print("Final SubsetTrn and FullTrn Loss:", full_trn_loss.item(), sub_trn_loss.item())
     print("Validation Loss and Accuracy:", val_loss.item(), val_acc)
-    #print("Validation precision and recall of label 1:", val_pre, val_recall)
+    print("Validation precision and recall of label 1:", val_pre, val_recall)
     print("Test Data Loss and Accuracy:", test_loss.item(), tst_acc)
-    #print("Test precision and recall of label 1:", tst_pre, tst_recall)
+    print("Test precision and recall of label 1:", tst_pre, tst_recall)
     print('-----------------------------------')
     return val_acc, tst_acc, val_loss.item(), test_loss.item(), substrn_losses, fulltrn_losses, val_losses, idxs, substrn_grads
 
@@ -657,6 +657,14 @@ fv1, ft1, fv2, ft2, facloc_substrn_losses, facloc_fulltrn_losses, facloc_val_los
 t_val_valacc, t_val_tstacc, t_val_valloss, t_val_tstloss, tay_fval_substrn_losses, tay_fval_fulltrn_losses, tay_fval_val_losses, subset_idxs, tay_grads = train_model_taylor(
     'Taylor Online', start_idxs, bud, True)
 
+# Online algo run
+t_val_valacc, t_val_tstacc, t_val_valloss, t_val_tstloss, tay_fval_substrn_losses, tay_fval_fulltrn_losses, tay_fval_val_losses, subset_idxs, tay_grads = train_model_taylor(
+    'Taylor Online', start_idxs, bud, True)
+
+# Online algo run
+#f_val_valacc, f_val_tstacc, f_val_valloss, f_val_tstloss, f_fval_substrn_losses, f_fval_fulltrn_losses, f_fval_val_losses, f_subset_idxs, f_grads = train_model_taylor(
+#    'Full OneStep', start_idxs, bud, True)
+
 # Facility Location OneStep Runs
 #facloc_reg_t_val_valacc, facloc_reg_t_val_tstacc, facloc_reg_t_val_valloss, facloc_reg_t_val_tstloss, facloc_reg_tay_fval_substrn_losses, facloc_reg_tay_fval_fulltrn_losses, facloc_reg_tay_fval_val_losses, facloc_reg_subset_idxs, facloc_reg_grads = train_model_taylor(
 #    'Facloc Regularized', start_idxs, bud, True, facloc_idxs)
@@ -677,6 +685,7 @@ plt.figure()
 plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_substrn_losses[plot_start_epoch:], 'b-', label='GLISTER ONLINE')
 #plt.plot(np.arange(plot_start_epoch, num_epochs), craig_substrn_losses[plot_start_epoch:], '#750D86',
 #         label='CRAIG')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), f_fval_substrn_losses[plot_start_epoch:], 'r-', label='Full OneStep')
 plt.plot(np.arange(plot_start_epoch, num_epochs), craig_val_losses[plot_start_epoch:], 'm', label='CRAIG')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_substrn_losses[plot_start_epoch:], 'g-', label='random')
 plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_substrn_losses[plot_start_epoch:], 'pink', label='knn_submod')
@@ -700,6 +709,7 @@ plt.figure()
 #plt.plot(np.arange(plot_start_epoch, num_epochs), knn_ftrn_fulltrn_losses, 'orange', label='knn_submod')
 #plt.plot(np.arange(plot_start_epoch, num_epochs), knn_fval_fulltrn_losses, 'r-', label='knn_v=val')
 plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_fulltrn_losses[plot_start_epoch:], 'b-', label='GLISTER-ONLINE')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), f_fval_fulltrn_losses[plot_start_epoch:], 'r-', label='Full OneStep')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_fulltrn_losses[plot_start_epoch:], 'g-', label='random')
 plt.plot(np.arange(plot_start_epoch, num_epochs), craig_fulltrn_losses[plot_start_epoch:], 'm', label='CRAIG')
 plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_fulltrn_losses[plot_start_epoch:], 'pink', label='knn_submod')
@@ -723,6 +733,7 @@ plt.figure()
 #plt.plot(np.arange(plot_start_epoch, num_epochs), knn_ftrn_val_losses, 'orange', label='knn_submod')
 #plt.plot(np.arange(plot_start_epoch, num_epochs), knn_fval_val_losses, 'r-', label='knn_v=val')
 plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_val_losses[plot_start_epoch:], 'b-', label='GLISTER-ONLINE')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), f_fval_val_losses[plot_start_epoch:], 'r-', label='Full OneStep')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_val_losses[plot_start_epoch:], 'g-', label='random')
 #plt.plot(np.arange(plot_start_epoch, num_epochs), craig_val_losses[plot_start_epoch:], '#750D86', label='CRAIG')
 plt.plot(np.arange(plot_start_epoch, num_epochs), craig_val_losses[plot_start_epoch:], 'm', label='CRAIG')
@@ -749,6 +760,7 @@ print('| -------------------------------|:-------------:| ----------------:|', f
 print('*| KNN SUBMOD           |', fv1, '  | ', ft1, ' |', file=logfile)
 #print('*| Supervised Facility Location with Validation=VAL     |', knn_valacc_flagval, '  | ', knn_tstacc_flagval, ' |', file=logfile)
 #print('*| Supervised Facility Location with Validation=TRN     |', knn_valacc_flagtrn, '  | ', knn_tstacc_flagtrn, ' |', file=logfile)
+#print('*| Full onestep Validation=VAL     |', f_val_valacc, '  | ', f_val_tstacc, ' |', file=logfile)
 print('*| Taylor with Validation=VAL     |', t_val_valacc, '  | ', t_val_tstacc, ' |', file=logfile)
 print('*| Random Selection               |', rv1, '  | ', rt1, ' |', file=logfile)
 print('*| CRAIG Selection               |', craig_valacc, '  | ', craig_tstacc, ' |', file=logfile)
@@ -789,7 +801,12 @@ print("=========Supervised FacLoc Results with Validation=TRN==============", fi
 print("*Facloc Validation LOSS:", knn_valloss_flagtrn, file=logfile)
 print("*Facloc Test Data LOSS:", knn_tstloss_flagtrn, file=logfile)
 print("*Facloc Full Trn Data LOSS:", knn_ftrn_fulltrn_losses[-1], file=logfile)
-'''
+
+print("=========Online Selection with Validation Set===================", file=logfile)
+print("*Taylor v=VAL Validation LOSS:", f_val_valloss, file=logfile)
+print("*Taylor v=VAL Test Data LOSS:", f_val_tstloss, file=logfile)
+print("*Taylor v=VAL Full Trn Data LOSS:", f_fval_fulltrn_losses[-1], file=logfile)'''
+
 print("=========Online Selection Taylor with Validation Set===================", file=logfile)
 print("*Taylor v=VAL Validation LOSS:", t_val_valloss, file=logfile)
 print("*Taylor v=VAL Test Data LOSS:", t_val_tstloss, file=logfile)

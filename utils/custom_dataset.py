@@ -90,8 +90,8 @@ def census_load(path,dim, save_data=False):
         'Never-worked'])
     workclass = dict((j,i) for i,j in enum)
 
-    enum=enumerate(['Bachelors', 'Some-college', '11th, HS-grad', 'Prof-school', 'Assoc-acdm', 'Assoc-voc', '9th', '7th-8th', 
-        '12th, Masters', '1st-4th', '10th', 'Doctorate', '5th-6th', 'Preschool'])
+    enum=enumerate(['Bachelors', 'Some-college', '11th', 'HS-grad', 'Prof-school', 'Assoc-acdm', 'Assoc-voc', '9th', '7th-8th', 
+        '12th', 'Masters', '1st-4th', '10th', 'Doctorate', '5th-6th', 'Preschool'])
     education = dict((j,i) for i,j in enum)
 
     enum=enumerate(['Married-civ-spouse', 'Divorced', 'Never-married', 'Separated', 'Widowed', 'Married-spouse-absent', 'Married-AF-spouse'])
@@ -107,7 +107,7 @@ def census_load(path,dim, save_data=False):
     enum=enumerate(['White', 'Asian-Pac-Islander', 'Amer-Indian-Eskimo', 'Other', 'Black'])
     race = dict((j,i) for i,j in enum)
 
-    sex ={0:'Female',1:'Male'}
+    sex ={'Female':0,'Male':1}
 
     enum=enumerate(['United-States', 'Cambodia', 'England', 'Puerto-Rico', 'Canada', 'Germany', 'Outlying-US(Guam-USVI-etc)',
      'India', 'Japan', 'Greece', 'South', 'China', 'Cuba', 'Iran', 'Honduras', 'Philippines', 'Italy', 'Poland', 'Jamaica', 
@@ -119,41 +119,48 @@ def census_load(path,dim, save_data=False):
     data = []
     target = []
     with open(path) as fp:
-       line = fp.readline()
-       while line:
-        temp = [i for i in line.strip().split(",")]
-
-        if temp[-1].strip() == "<=50K":
-            target.append(0) # Class Number. # Not assumed to be in (0, K-1)
-        else:
-            target.append(1)
-        
-        temp_data = [0]*dim
-        count = 1
-        for i in temp[:-1]:
-
-            if count == 2:
-                temp_data[count] =  workclass[i.strip()]
-            elif count == 4:
-                temp_data[count] =  education[i.strip()]
-            elif count == 6:
-                temp_data[count] =  marital_status[i.strip()]
-            elif count == 7:
-                temp_data[count] =  occupation[i.strip()]
-            elif count == 8:
-                temp_data[count] =  relationship[i.strip()]
-            elif count == 9:
-                temp_data[count] =  race[i.strip()]
-            elif count == 10:
-                temp_data[count] =  sex[i.strip()]
-            elif count == 14:
-                temp_data[count] =  native_country[i.strip()]
-            else:
-                temp_data[count] = float(i)
-            count += 1
-        
-        data.append(temp_data)
         line = fp.readline()
+        while line:
+            temp = [i.strip() for i in line.strip().split(",")]
+
+            if '?' in temp  or len(temp) == 1:
+                line = fp.readline()
+                continue
+
+            if temp[-1].strip() == "<=50K" or temp[-1].strip() == "<=50K.":
+                target.append(0) 
+            else:
+                target.append(1)
+            
+            temp_data = [0]*dim
+            count = 0
+            #print(temp)
+
+            for i in temp[:-1]:
+
+                if count == 1:
+                    temp_data[count] =  workclass[i.strip()]
+                elif count == 3:
+                    temp_data[count] =  education[i.strip()]
+                elif count == 5:
+                    temp_data[count] =  marital_status[i.strip()]
+                elif count == 6:
+                    temp_data[count] =  occupation[i.strip()]
+                elif count == 7:
+                    temp_data[count] =  relationship[i.strip()]
+                elif count == 8:
+                    temp_data[count] =  race[i.strip()]
+                elif count == 9:
+                    temp_data[count] =  sex[i.strip()]
+                elif count == 13:
+                    temp_data[count] =  native_country[i.strip()]
+                else:
+                    temp_data[count] = float(i)
+                temp_data[count] = float(temp_data[count])
+                count += 1
+            
+            data.append(temp_data)
+            line = fp.readline()
     X_data = np.array(data, dtype=np.float32)
     Y_label = np.array(target)
     if save_data:
@@ -220,24 +227,32 @@ def clean_uci_ordinal_data(inp_fname, out_fname):
 
 ## Utility function to save numpy array for knnSB
 ## Used in: KnnSubmod Selection
-def write_knndata(datadir, dset_name):
-    fullset, valset, testset, num_cls  = load_dataset_numpy(datadir, dset_name)
-    
+def write_knndata(datadir, dset_name,feature):
+
+    # Write out the trndata
+    trn_filepath = os.path.join(datadir, feature+'_knn_' + dset_name + '.trn')
+    val_filepath = os.path.join(datadir, feature+'_knn_' + dset_name + '.val')
+    tst_filepath = os.path.join(datadir, feature+'_knn_' + dset_name + '.tst')
+
+    if os.path.exists(trn_filepath) and os.path.exists(val_filepath) and os.path.exists(tst_filepath):
+        return
+
+    fullset, valset, testset, num_cls  = load_dataset_numpy(datadir, dset_name, feature)
     x_trn, y_trn = fullset
     x_val , y_val = valset
     x_tst, y_tst = testset
     ## Create VAL data
     #x_trn, x_val, y_trn, y_val = train_test_split(x_trn, y_trn, test_size=0.1, random_state=42)
+
     trndata = np.c_[x_trn, y_trn]
     valdata = np.c_[x_val, y_val]
     tstdata = np.c_[x_tst, y_tst]
-    # Write out the trndata
-    trn_filepath = os.path.join(datadir, 'knn_' + dset_name + '.trn')
-    val_filepath = os.path.join(datadir, 'knn_' + dset_name + '.val')
-    tst_filepath = os.path.join(datadir, 'knn_' + dset_name + '.tst')
+
+
     np.savetxt(trn_filepath, trndata, fmt='%.6f')
     np.savetxt(val_filepath, valdata, fmt='%.6f')
     np.savetxt(tst_filepath, tstdata, fmt='%.6f')
+
     return
 
 ## Takes in a dataset name and returns a PyTorch Dataset Object
@@ -568,7 +583,7 @@ def load_dataset_pytorch_sep_val(datadir, dset_name,device):
 
 
 ## Takes in a dataset name and returns a Tuple of ((x_trn, y_trn), (x_tst, y_tst))
-def load_dataset_numpy(datadir, dset_name):
+def load_dataset_numpy(datadir, dset_name,feature=None):
     if dset_name == "dna":
         trn_file = os.path.join(datadir, 'dna.scale.trn')
         val_file = os.path.join(datadir, 'dna.scale.val')
@@ -838,7 +853,7 @@ def load_dataset_numpy(datadir, dset_name):
         return fullset, valset, testset, num_cls
 
     elif dset_name == "covertype":
-        trn_file = os.path.join(datadir, 'covertype.data')
+        trn_file = os.path.join(datadir, 'covtype.data')
 
         data_dims = 54
         num_cls = 7
@@ -853,6 +868,68 @@ def load_dataset_numpy(datadir, dset_name):
         x_trn = sc.fit_transform(x_trn)
         x_val = sc.transform(x_val)
         x_tst = sc.transform(x_tst)
+
+        if feature == 'classimb':
+            samples_per_class = np.zeros(num_cls)
+            val_samples_per_class = np.zeros(num_cls)
+            tst_samples_per_class = np.zeros(num_cls)
+            for i in range(num_cls):
+                samples_per_class[i] = len(np.where(y_trn == i)[0])
+                val_samples_per_class[i] = len(np.where(y_val == i)[0])
+                tst_samples_per_class[i] = len(np.where(y_tst == i)[0])
+            min_samples = int(np.min(samples_per_class) * 0.1)
+            print(min_samples)
+            selected_classes = np.random.choice(np.arange(num_cls), size=int(0.3 * num_cls), replace=False)
+            for i in range(num_cls):
+                if i == 0:
+                    if i in selected_classes:
+                        subset_idxs = np.random.choice(np.where(y_trn == i)[0], size=min_samples, replace=False)
+                    else:
+                        subset_idxs = np.where(y_trn == i)[0]
+                    x_trn_new = x_trn[subset_idxs]
+                    y_trn_new = y_trn[subset_idxs].reshape(-1, 1)
+                else:
+                    if i in selected_classes:
+                        subset_idxs = np.random.choice(np.where(y_trn == i)[0], size=min_samples, replace=False)
+                    else:
+                        subset_idxs = np.where(y_trn == i)[0]
+                    x_trn_new = np.row_stack((x_trn_new, x_trn[subset_idxs]))
+                    y_trn_new = np.row_stack((y_trn_new, y_trn[subset_idxs].reshape(-1, 1)))
+            max_samples = int(np.max(val_samples_per_class))
+            #print(val_samples_per_class)
+            for i in range(num_cls):
+                y_class = np.where(y_val == i)[0]
+                if i == 0:
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_val_new = np.row_stack((x_val,x_val[subset_ids]))
+                    y_val_new = np.row_stack((y_val.reshape(-1, 1),y_val[subset_ids].reshape(-1, 1)))
+                else:
+                    subset_ids = np.random.choice(y_class, size=max_samples- y_class.shape[0], replace=True)
+                    x_val_new = np.row_stack((x_val,x_val_new, x_val[subset_ids]))
+                    y_val_new = np.row_stack((y_val.reshape(-1, 1),y_val_new, y_val[subset_ids].reshape(-1, 1)))
+            max_samples = int(np.max(tst_samples_per_class))
+            #print(tst_samples_per_class)
+            for i in range(num_cls):
+                y_class = np.where(y_tst == i)[0]
+                if i == 0:
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_tst_new = np.row_stack((x_tst,x_tst[subset_ids]))
+                    y_tst_new = np.row_stack((y_tst.reshape(-1, 1),y_tst[subset_ids].reshape(-1, 1)))
+                else:
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_tst_new = np.row_stack((x_tst,x_tst_new, x_tst[subset_ids]))
+                    y_tst_new = np.row_stack((y_tst.reshape(-1, 1),y_tst_new, y_tst[subset_ids].reshape(-1, 1)))
+
+            x_val = x_val_new
+            y_val = y_val_new.reshape(-1)
+            x_tst = x_tst_new
+            y_tst = y_tst_new.reshape(-1)
+            y_trn = y_trn_new.reshape(-1)
+            x_trn = x_trn_new
+        elif feature == 'noise':
+            noise_size = int(len(y_trn) * 0.8)
+            noise_indices = np.random.choice(np.arange(len(y_trn)), size=noise_size, replace=False)
+            y_trn[noise_indices] = np.random.choice(np.arange(num_cls), size=noise_size, replace=True)
 
         fullset = (x_trn, y_trn)
         valset = (x_val, y_val)
@@ -874,6 +951,68 @@ def load_dataset_numpy(datadir, dset_name):
         x_trn = sc.fit_transform(x_trn)
         x_val = sc.transform(x_val)
         x_tst = sc.transform(x_tst)
+
+        if feature == 'classimb':
+            samples_per_class = np.zeros(num_cls)
+            val_samples_per_class = np.zeros(num_cls)
+            tst_samples_per_class = np.zeros(num_cls)
+            for i in range(num_cls):
+                samples_per_class[i] = len(np.where(y_trn == i)[0])
+                val_samples_per_class[i] = len(np.where(y_val == i)[0])
+                tst_samples_per_class[i] = len(np.where(y_tst == i)[0])
+            min_samples = int(np.min(samples_per_class) * 0.1)
+
+            selected_classes = np.random.choice(np.arange(num_cls), size=int(0.3 * num_cls), replace=False)
+            for i in range(num_cls):
+                if i == 0:
+                    if i in selected_classes:
+                        subset_idxs = np.random.choice(np.where(y_trn == i)[0], size=min_samples, replace=False)
+                    else:
+                        subset_idxs = np.where(y_trn == i)[0]
+                    x_trn_new = x_trn[subset_idxs]
+                    y_trn_new = y_trn[subset_idxs].reshape(-1, 1)
+                else:
+                    if i in selected_classes:
+                        subset_idxs = np.random.choice(np.where(y_trn == i)[0], size=min_samples, replace=False)
+                    else:
+                        subset_idxs = np.where(y_trn == i)[0]
+                    x_trn_new = np.row_stack((x_trn_new, x_trn[subset_idxs]))
+                    y_trn_new = np.row_stack((y_trn_new, y_trn[subset_idxs].reshape(-1, 1)))
+            max_samples = int(np.max(val_samples_per_class))
+            #print(val_samples_per_class)
+            for i in range(num_cls):
+                y_class = np.where(y_val == i)[0]
+                if i == 0:
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_val_new = np.row_stack((x_val,x_val[subset_ids]))
+                    y_val_new = np.row_stack((y_val.reshape(-1, 1),y_val[subset_ids].reshape(-1, 1)))
+                else:
+                    subset_ids = np.random.choice(y_class, size=max_samples- y_class.shape[0], replace=True)
+                    x_val_new = np.row_stack((x_val,x_val_new, x_val[subset_ids]))
+                    y_val_new = np.row_stack((y_val.reshape(-1, 1),y_val_new, y_val[subset_ids].reshape(-1, 1)))
+            max_samples = int(np.max(tst_samples_per_class))
+            #print(tst_samples_per_class)
+            for i in range(num_cls):
+                y_class = np.where(y_tst == i)[0]
+                if i == 0:
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_tst_new = np.row_stack((x_tst,x_tst[subset_ids]))
+                    y_tst_new = np.row_stack((y_tst.reshape(-1, 1),y_tst[subset_ids].reshape(-1, 1)))
+                else:
+                    subset_ids = np.random.choice(y_class, size=max_samples - y_class.shape[0], replace=True)
+                    x_tst_new = np.row_stack((x_tst,x_tst_new, x_tst[subset_ids]))
+                    y_tst_new = np.row_stack((y_tst.reshape(-1, 1),y_tst_new, y_tst[subset_ids].reshape(-1, 1)))
+
+            x_val = x_val_new
+            y_val = y_val_new.reshape(-1)
+            x_tst = x_tst_new
+            y_tst = y_tst_new.reshape(-1)
+            y_trn = y_trn_new.reshape(-1)
+            x_trn = x_trn_new
+        elif feature == 'noise':
+            noise_size = int(len(y_trn) * 0.8)
+            noise_indices = np.random.choice(np.arange(len(y_trn)), size=noise_size, replace=False)
+            y_trn[noise_indices] = np.random.choice(np.arange(num_cls), size=noise_size, replace=True)
 
         fullset = (x_trn, y_trn)
         valset = (x_val, y_val)
