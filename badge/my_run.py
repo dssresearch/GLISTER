@@ -7,6 +7,11 @@ import torch
 from badge.query_strategies.badge_sampling import BadgeSampling
 from sklearn.model_selection import train_test_split
 import resnet
+from torch.utils.data import random_split, SequentialSampler, BatchSampler, RandomSampler
+from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data import Dataset
+from torchvision import datasets
+from PIL import Image
 
 import sys
 sys.path.append('../')
@@ -49,53 +54,92 @@ class mlpMod(nn.Module):
     def get_embedding_dim(self):
         return self.embSize
 
+class DataHandler3(Dataset):
+    def __init__(self, X, Y, transform=None):
+        self.X = X
+        self.Y = Y
+        self.transform = transform
+
+    def __getitem__(self, index):
+        x, y = self.X[index], self.Y[index]
+        if self.transform is not None:
+            x = Image.fromarray(x)
+            x = self.transform(x)
+        return x, y, index
+
+    def __len__(self):
+        return len(self.X)
+
+
 
 def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir,data_name, feature):
 
     torch.manual_seed(42)
+    torch.cuda.manual_seed(42)
     np.random.seed(42)
+    random.seed(42)
+    torch.backends.cudnn.deterministic = True
 
     if data_name in ['dna','sklearn-digits','satimage','svmguide1','letter','shuttle','ijcnn1','sensorless','connect_4','sensit_seismic','usps']:
         fullset, valset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
         write_knndata_old(datadir, data_name,feature=feature)
-    if data_name == 'cifar10':
+    elif data_name == 'cifar10':
         fullset, valset, testset, num_cls = load_dataset_pytorch(datadir, data_name)
         # Validation Data set is 10% of the Entire Trainset.
         validation_set_fraction = 0.1
         num_fulltrn = len(fullset)
         num_val = int(num_fulltrn * validation_set_fraction)
         num_trn = num_fulltrn - num_val
-        trainset, validset = random_split(fullset, [num_trn, num_val],generator=torch.Generator().manual_seed(42))
+        trainset, validset = random_split(fullset, [num_trn, num_val])#,generator=torch.Generator().manual_seed(42))
 
-        cnt = 0
-        for batch_idx in batch_wise_indices:
-            inputs = torch.cat([fullset[x][0].view(1, -1) for x in batch_idx],
-                               dim=0).type(torch.float)
-            targets = torch.tensor([fullset[x][1] for x in batch_idx])
-            if cnt == 0:
-                x_trn = inputs.cpu().numpy()
-                y_trn = targets.cpu().numpy()
-                cnt = cnt + 1
+        x_trn = fullset.data[list(trainset.indices)]
+        y_trn = torch.from_numpy(np.array(fullset.targets)[list(trainset.indices)].astype('float32'))
+        x_val = fullset.data[list(validset.indices)]
+        y_val = torch.from_numpy(np.array(fullset.targets)[list(validset.indices)].astype('float32') )
+        x_tst = testset.data
+        y_tst = torch.from_numpy(np.array(testset.targets).astype('float32'))
+
+        '''trn_batch_size = 128    
+
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=trn_batch_size,
+                                              shuffle=False, pin_memory=True)
+        
+        for batch_idx, (inputs, targets) in enumerate(trainloader):
+            if batch_idx == 0:
+                x_trn = inputs
+                y_trn = targets
             else:
                 x_trn = torch.cat([x_trn, inputs], dim=0)
                 y_trn = torch.cat([y_trn, targets], dim=0)
-                cnt = cnt + 1
+        
+        val_batch_size = 1000
+        tst_batch_size = 1000
+
+        valloader = torch.utils.data.DataLoader(valset, batch_size=val_batch_size, shuffle=False,
+                                                   sampler=SubsetRandomSampler(validset.indices),
+                                                   pin_memory=True)
+
+        testloader = torch.utils.data.DataLoader(testset, batch_size=tst_batch_size,
+                                             shuffle=False, pin_memory=True)
 
         for batch_idx, (inputs, targets) in enumerate(valloader):
             if batch_idx == 0:
-                x_val = inputs.cpu().numpy()
-                y_val = targets.cpu().numpy()
+                x_val = inputs
+                y_val = targets
             else:
                 x_val = torch.cat([x_val, inputs], dim=0)
                 y_val = torch.cat([y_val, targets], dim=0)
                 
         for batch_idx, (inputs, targets) in enumerate(testloader):
             if batch_idx == 0:
-                x_tst = inputs.cpu().numpy()
-                y_tst = targets.cpu().numpy()
+                x_tst = inputs
+                y_tst = targets
             else:
                 x_tst = torch.cat([x_tst, inputs], dim=0)
                 y_tst = torch.cat([y_tst, targets], dim=0)
+
+        x_trn, y_trn, x_val, y_val, x_tst, y_tst = x_trn.cpu().numpy(), y_trn.cpu().numpy(), x_val.cpu().numpy(), y_val.cpu().numpy(),\
+        x_tst.cpu().numpy(), y_tst.cpu().numpy()'''
                 
     elif data_name in ['mnist' , "fashion-mnist"]:
         fullset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
@@ -115,28 +159,33 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
         x_trn, x_val, y_trn, y_val = train_test_split(x_trn, y_trn, test_size=0.1, random_state=42)
 
     else:
-        x_trn, y_trn = fullset
-        x_val, y_val = valset
-        x_tst, y_tst = testset
-
-    handler = CustomDataset_act
+        if data_name != 'cifar10':
+            x_trn, y_trn = fullset
+            x_val, y_val = valset
+            x_tst, y_tst = testset
 
     if data_name == 'cifar10':
-        args = {'n_epoch': 3, 
+        handler = DataHandler3
+    else:
+        handler = CustomDataset_act
+
+    if data_name == 'cifar10':
+        args = {'n_epoch': epoch, 
             'transform': transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))]),
-            'loader_tr_args':{'batch_size': 128}
+            'loader_tr_args':{'batch_size': 128},
             'loader_te_args':{'batch_size': 1000},
             'optimizer_args':{'lr': learning_rate},
             'transformTest': transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])    
         }
+
         args['lr'] = learning_rate
 
     else:
         args = {'transform':None,
                 'n_epoch':epoch,
-                'loader_tr_args':{'batch_size': NUM_QUERY, 'num_workers': 1},
-                'loader_te_args':{'batch_size': 1000, 'num_workers': 1},
-                'optimizer_args':{'lr': learning_rate, 'momentum': 0},
+                'loader_tr_args':{'batch_size': NUM_QUERY},
+                'loader_te_args':{'batch_size': 1000},
+                'optimizer_args':{'lr': learning_rate},
                 'transformTest':None}
 
         args['lr'] = learning_rate
@@ -163,6 +212,8 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
     val_acc = np.zeros(NUM_ROUND+1)
 
     P = strategy.predict(x_tst, y_tst)
+    tst_acc[0] = 100.0 * P.eq(torch.tensor(y_tst)).sum().item()/ n_test
+    print('\ttesting accuracy {}'.format(tst_acc[0]), flush=True)
     tst_acc[0] = 100.0 * P.eq(torch.tensor(y_tst)).sum().item()/ n_test
     print('\ttesting accuracy {}'.format(tst_acc[0]), flush=True)
 

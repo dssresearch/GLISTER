@@ -56,7 +56,7 @@ def init_centers(X, K):
                 if D2[i] >  newD[i]:
                     centInds[i] = cent
                     D2[i] = newD[i]
-        print(str(len(mu)) + '\t' + str(sum(D2)), flush=True)
+        #print(str(len(mu)) + '\t' + str(sum(D2)), flush=True)
         if sum(D2) == 0.0: pdb.set_trace()
         D2 = D2.ravel().astype(float)
         Ddist = (D2 ** 2)/ sum(D2 ** 2)
@@ -75,9 +75,17 @@ class BadgeSampling(Strategy):
     def __init__(self, X, Y, idxs_lb, net, handler, args):
         super(BadgeSampling, self).__init__(X, Y, idxs_lb, net, handler, args)
         torch.manual_seed(42)
+        torch.cuda.manual_seed(42)
         np.random.seed(42)
+        #random.seed(42)
+        torch.backends.cudnn.deterministic = True
 
     def query(self, n):
+        torch.manual_seed(42)
+        torch.cuda.manual_seed(42)
+        np.random.seed(42)
+        #random.seed(42)
+        torch.backends.cudnn.deterministic = True
         idxs_unlabeled = np.arange(self.n_pool)[~self.idxs_lb]
         gradEmbedding = self.get_grad_embedding(self.X[idxs_unlabeled], self.Y[idxs_unlabeled]).numpy()
         chosen = init_centers(gradEmbedding, n),

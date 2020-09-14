@@ -14,13 +14,16 @@ class Strategy:
         self.X = X
         self.Y = Y
         self.idxs_lb = idxs_lb
-        self.net = net
+        self.clf = net
         self.handler = handler
         self.args = args
         self.n_pool = len(Y)
         use_cuda = torch.cuda.is_available()
         torch.manual_seed(42)
+        torch.cuda.manual_seed(42)
         np.random.seed(42)
+        #random.seed(42)
+        torch.backends.cudnn.deterministic = True
 
     def query(self, n):
         pass
@@ -54,26 +57,36 @@ class Strategy:
 
     
     def train(self):
+
         def weight_reset(m):
+            torch.manual_seed(42)
+            torch.cuda.manual_seed(42)
+            np.random.seed(42)
+            #random.seed(42)
+            torch.backends.cudnn.deterministic = True
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-                m.reset_parameters()
+                #m.reset_parameters()
+                m.weight.data.normal_(0.0, 0.02)
+                m.bias.data.fill_(0)
 
         n_epoch = self.args['n_epoch']
-        self.clf =  self.net.apply(weight_reset).cuda()
+        self.clf =  self.clf.apply(weight_reset).cuda()
+        self.clf =  self.clf.apply(weight_reset).cuda()
+        #print(self.clf.lm2.weight)
         #optimizer = optim.Adam(self.clf.parameters(), lr = self.args['lr'], weight_decay=0)
         optimizer = optim.SGD(self.clf.parameters(), lr = self.args['lr'])
 
         idxs_train = np.arange(self.n_pool)[self.idxs_lb]
-        loader_tr = DataLoader(self.handler(self.X[idxs_train], torch.Tensor(self.Y[idxs_train]).long(), transform=self.args['transform']), shuffle=False, **self.args['loader_tr_args'])
+        loader_tr = DataLoader(self.handler(self.X[idxs_train], torch.Tensor(self.Y[idxs_train]).long()), **self.args['loader_tr_args'])
    
         epoch = 1
         accCurrent = 0.
-        while accCurrent < 0.99 and epoch < n_epoch: 
+        while epoch < n_epoch: #accCurrent < 0.99 and 
             accCurrent = self._train(epoch, loader_tr, optimizer)
             epoch += 1
             #print(str(epoch) + ' training accuracy: ' + str(accCurrent), flush=True)
             if (epoch % 50 == 0) and (accCurrent < 0.2): # reset if not converging
-                self.clf = self.net.apply(weight_reset)
+                self.clf = self.clf.apply(weight_reset)
                 #optimizer = optim.Adam(self.clf.parameters(), lr = self.args['lr'], weight_decay=0)
                 optimizer = optim.SGD(self.clf.parameters(), lr = self.args['lr'])
 

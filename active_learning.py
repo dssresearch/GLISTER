@@ -187,7 +187,10 @@ facility_loaction_warm_start = []
 def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,fac_loc_idx=None):
     
     torch.manual_seed(42)
+    torch.cuda.manual_seed(42)
     np.random.seed(42)
+    random.seed(42)
+    torch.backends.cudnn.deterministic = True
     #model = ThreeLayerNet(M, num_cls, 5, 5)
     #model = LogisticRegNet(M, num_cls)
     model = TwoLayerNet(M, num_cls, 100)
@@ -266,11 +269,20 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     # idxs = start_rand_idxs
 
     def weight_reset(m):
+        torch.manual_seed(42)
+        torch.cuda.manual_seed(42)
+        np.random.seed(42)
+        random.seed(42)
+        torch.backends.cudnn.deterministic = True
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-            m.reset_parameters()
+            #m.reset_parameters()
+            m.weight.data.normal_(0.0, 0.02)
+            m.bias.data.fill_(0)
 
+    model =  model.apply(weight_reset).cuda()
+    #print(model.linear2.weight)
     for n in range(no_select):
-        loader_tr = DataLoader(CustomDataset_act(x_trn[idxs], y_trn[idxs],batch_size=no_points, transform=None))
+        loader_tr = DataLoader(CustomDataset_act(x_trn[idxs], y_trn[idxs], transform=None),batch_size=no_points)
         model.train()
         for i in range(num_epochs):
             # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
@@ -282,7 +294,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             optimizer.step()'''
             #model =  model.apply(weight_reset).cuda()
 
-            accFinal = 0.
+            accFinal = 0. 
             for batch_idx in list(loader_tr.batch_sampler):
                 x, y, idxs = loader_tr.dataset[batch_idx]
 
@@ -301,6 +313,9 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
                 for p in filter(lambda p: p.grad is not None, model.parameters()): p.grad.data.clamp_(min=-.1, max=.1)
 
                 optimizer.step()
+
+            #if accFinal/len(loader_tr.dataset.X) >= 0.99:
+            #    break
 
             '''with torch.no_grad():
                 # val_in, val_t = x_val.to(device), y_val.to(device)
@@ -386,8 +401,8 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
                 indices = list(remainList)
 
             knn_idxs_flag_val = perform_knnsb_selection(datadir, data_name, indices, fraction, selUsing='val') 
-            print(knn_idxs_flag_val)
-            print(len(knn_idxs_flag_val))
+            #print(knn_idxs_flag_val)
+            #print(len(knn_idxs_flag_val))
 
             ##print(len(knn_idxs_flag_val),len(indices))
             knn_idxs_flag_val = list(np.array(indices)[knn_idxs_flag_val])
@@ -562,7 +577,7 @@ print(data_name,":Budget = ", fraction, file=logfile)
 methods=["One Step Taylor",'Fac Loc Reg One Step','Rand Reg One Step','Facility Location','FASS',\
 'Random',"BADGE"] #,"Full One Step" #'One step Perturbation'
 val_acc =[t_va,facloc_reg_t_va,rand_t_va,fva,kva,rva,bva] #,ft_va
-tst_acc =[t_ta,facloc_reg_t_ta,rand_t_ta,fva,kta,rta,bta] #,ft_ta
+tst_acc =[t_ta,facloc_reg_t_ta,rand_t_ta,fta,kta,rta,bta] #,ft_ta
 unlabel_acc =[t_ua,facloc_reg_t_ua,rand_t_ua,fua,kua,rua,bua] #,ft_ua
 
 print("Validation Accuracy",file=logfile)

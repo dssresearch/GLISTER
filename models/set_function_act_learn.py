@@ -117,7 +117,10 @@ class SetFunctionTaylor(object):
         while (numSelected < budget):
             # Try Using a List comprehension here!
             t_one_elem = time.time()
+            state = np.random.get_state()
+            np.random.seed(numSelected*numSelected)
             subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
+            np.random.set_state(state)
             rem_grads = [self.grads_per_elem[x].view(1, self.grads_per_elem[0].shape[0]) for x in subset_selected]
             gains = self.eval_taylor_modular(rem_grads, theta_init)
             # Update the greedy set and remaining set
