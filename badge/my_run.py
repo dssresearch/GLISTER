@@ -63,6 +63,9 @@ class DataHandler3(Dataset):
     def __getitem__(self, index):
         x, y = self.X[index], self.Y[index]
         if self.transform is not None:
+            #x.dtype = np.uint8
+            #x = Image.fromarray(x,mode = 'RGB')
+            print(x.shape)
             x = Image.fromarray(x)
             x = self.transform(x)
         return x, y, index
@@ -92,18 +95,26 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
         num_trn = num_fulltrn - num_val
         trainset, validset = random_split(fullset, [num_trn, num_val])#,generator=torch.Generator().manual_seed(42))
 
-        x_trn = fullset.data[list(trainset.indices)]
-        y_trn = torch.from_numpy(np.array(fullset.targets)[list(trainset.indices)].astype('float32'))
-        x_val = fullset.data[list(validset.indices)]
-        y_val = torch.from_numpy(np.array(fullset.targets)[list(validset.indices)].astype('float32') )
+        '''x_trn = fullset.data[trainset.indices]
+        y_trn = torch.from_numpy(np.array(fullset.targets)[trainset.indices].astype('float32'))
+        x_val = fullset.data[validset.indices]
+        y_val = torch.from_numpy(np.array(fullset.targets)[validset.indices])
         x_tst = testset.data
-        y_tst = torch.from_numpy(np.array(testset.targets).astype('float32'))
-
-        '''trn_batch_size = 128    
+        y_tst = torch.from_numpy(np.array(testset.targets))'''
+        trn_batch_size = 128
+        val_batch_size = 1000
+        tst_batch_size = 1000
 
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=trn_batch_size,
-                                              shuffle=False, pin_memory=True)
-        
+                                                  shuffle=False, pin_memory=True)
+
+        valloader = torch.utils.data.DataLoader(valset, batch_size=val_batch_size, shuffle=False,
+                                                       sampler=SubsetRandomSampler(validset.indices),
+                                                       pin_memory=True)
+
+        testloader = torch.utils.data.DataLoader(testset, batch_size=tst_batch_size,
+                                                 shuffle=False, pin_memory=True)
+
         for batch_idx, (inputs, targets) in enumerate(trainloader):
             if batch_idx == 0:
                 x_trn = inputs
@@ -111,21 +122,12 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
             else:
                 x_trn = torch.cat([x_trn, inputs], dim=0)
                 y_trn = torch.cat([y_trn, targets], dim=0)
-        
-        val_batch_size = 1000
-        tst_batch_size = 1000
-
-        valloader = torch.utils.data.DataLoader(valset, batch_size=val_batch_size, shuffle=False,
-                                                   sampler=SubsetRandomSampler(validset.indices),
-                                                   pin_memory=True)
-
-        testloader = torch.utils.data.DataLoader(testset, batch_size=tst_batch_size,
-                                             shuffle=False, pin_memory=True)
 
         for batch_idx, (inputs, targets) in enumerate(valloader):
             if batch_idx == 0:
                 x_val = inputs
                 y_val = targets
+
             else:
                 x_val = torch.cat([x_val, inputs], dim=0)
                 y_val = torch.cat([y_val, targets], dim=0)
@@ -138,9 +140,10 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
                 x_tst = torch.cat([x_tst, inputs], dim=0)
                 y_tst = torch.cat([y_tst, targets], dim=0)
 
-        x_trn, y_trn, x_val, y_val, x_tst, y_tst = x_trn.cpu().numpy(), y_trn.cpu().numpy(), x_val.cpu().numpy(), y_val.cpu().numpy(),\
-        x_tst.cpu().numpy(), y_tst.cpu().numpy()'''
-                
+        #y_tst = y_tst.numpy().astype('float32')
+        #y_val = y_val.numpy().astype('float32')
+        y_trn = y_trn.numpy().astype('float32')
+                    
     elif data_name in ['mnist' , "fashion-mnist"]:
         fullset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
         write_knndata_old(datadir, data_name,feature=feature)
@@ -171,13 +174,13 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
 
     if data_name == 'cifar10':
         args = {'n_epoch': epoch, 
-            'transform': transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))]),
+            'transform': None,
             'loader_tr_args':{'batch_size': 128},
             'loader_te_args':{'batch_size': 1000},
             'optimizer_args':{'lr': learning_rate},
-            'transformTest': transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])    
+            'transformTest': None    
         }
-
+        #transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
         args['lr'] = learning_rate
 
     else:
@@ -214,8 +217,8 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
     P = strategy.predict(x_tst, y_tst)
     tst_acc[0] = 100.0 * P.eq(torch.tensor(y_tst)).sum().item()/ n_test
     print('\ttesting accuracy {}'.format(tst_acc[0]), flush=True)
-    tst_acc[0] = 100.0 * P.eq(torch.tensor(y_tst)).sum().item()/ n_test
-    print('\ttesting accuracy {}'.format(tst_acc[0]), flush=True)
+    #tst_acc[0] = 100.0 * P.eq(torch.tensor(y_tst)).sum().item()/ n_test
+    #print('\ttesting accuracy {}'.format(tst_acc[0]), flush=True)
 
     P = strategy.predict(x_val, y_val)
     val_acc[0] = 100.0 * P.eq(torch.tensor(y_val)).sum().item() / n_val    

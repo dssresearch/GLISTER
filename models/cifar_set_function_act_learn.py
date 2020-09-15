@@ -53,6 +53,7 @@ class SetFunctionLoader_2(object):
         grads_vec = data - outputs
         torch.cuda.empty_cache()
         print("Per Element Gradient Computation is Completed")
+        self.N_trn = len(grads_vec)
         self.grads_per_elem = grads_vec
 
     def _update_grads_val(self, theta_init, grads_currX=None, first_init=False):

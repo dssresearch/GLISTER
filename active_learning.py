@@ -131,9 +131,9 @@ x_val, y_val = x_val.to(device), y_val.to(device)
 
 train_batch_size_for_greedy = 800#1200 
 
-def perform_knnsb_selection(datadir, dset_name,remain, budget, selUsing):
+def perform_knnsb_selection(datadir, dset_name,X,Y, budget, selUsing):
 
-    trndata = np.c_[x_trn.cpu()[remain], y_trn.cpu()[remain]]
+    trndata = np.c_[X.cpu(), Y.cpu()]
     # Write out the trndata
     trn_filepath = os.path.join(datadir, 'act_'+feature+'_knn_' + dset_name + '.trn')
     np.savetxt(trn_filepath, trndata, fmt='%.6f')
@@ -153,7 +153,7 @@ def perform_knnsb_selection(datadir, dset_name,remain, budget, selUsing):
     knnsb_args.append(trn_filepath)
     knnsb_args.append(val_filepath)
     knnsb_args.append(" ")  # File delimiter!!
-    knnsb_args.append(str(no_points/x_trn[remain].shape[0]))
+    knnsb_args.append(str(no_points/X.shape[0]))
     knnsb_args.append(indices_file)
     knnsb_args.append("1")  # indicates cts data. Deprecated.
     print("Obtaining the subset")
@@ -196,13 +196,16 @@ def run_stochastic_Facloc(data, targets, budget):
     #greedy_batch_size = 1200
     for i in range(num_iterations):
         rem_indices = list(set(trn_indices).difference(set(facloc_indices)))
+        state = np.random.get_state()
+        np.random.seed(i*i)
         sub_indices = np.random.choice(rem_indices, size=sample_size, replace=False)
+        np.random.set_state(state)
         data_subset = data[sub_indices].cpu()
-        targets_subset = targets[sub_indices].cpu()
-        train_loader_greedy = []
-        train_loader_greedy.append((data_subset, targets_subset))
-        setf_model = SetFunctionFacLoc(device, train_loader_greedy)
-        idxs = setf_model.lazy_greedy_max(per_iter_bud, model)
+        #targets_subset = targets[sub_indices].cpu()
+        #train_loader_greedy = []
+        #train_loader_greedy.append((data_subset, targets_subset))
+        setf_model = SetFunctionFacLoc(device,1200)
+        idxs = setf_model.lazy_greedy_max(per_iter_bud,data_subset, model)
         facloc_indices.extend([sub_indices[idx] for idx in idxs])
     return facloc_indices
 
@@ -238,10 +241,15 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     if func_name == 'Full OneStep':
         setf_model = SetFunctionBatch(x_val, y_val, model, criterion, criterion_nored, learning_rate, device)
 
-    elif func_name == 'Facility Location' and data_name != 'covertype':
-        setf_model = SetFunctionFacLoc(device, train_batch_size_for_greedy)
-        idxs = setf_model.lazy_greedy_max(bud, x_trn,model)
+    elif func_name == 'Facility Location':
+        if data_name != 'covertype':
+            setf_model = SetFunctionFacLoc(device, train_batch_size_for_greedy)
+            idxs = setf_model.lazy_greedy_max(bud, x_trn,model)
+        else:
+            idxs = run_stochastic_Facloc(x_trn, y_trn, bud)
+
         facility_loaction_warm_start = copy.deepcopy(idxs)
+
 
     elif func_name == 'Facloc Regularized':
         setf_model = SetFunctionTaylor(x_val1, y_val1, model, criterion, criterion_nored, learning_rate, device,num_cls)
@@ -296,7 +304,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
         np.random.seed(42)
         random.seed(42)
         torch.backends.cudnn.deterministic = True
-        if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+        if isinstance(m, nn.Linear):
             #m.reset_parameters()
             m.weight.data.normal_(0.0, 0.02)
             m.bias.data.fill_(0)
@@ -418,16 +426,17 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             #print(entropy2.shape)
             if 5*no_points < entropy2.shape[0]:
                 values,indices = entropy2.topk(5*no_points)
-                indices = list(np.array(list(remainList))[indices.cpu()])
+                #indices = list(np.array(list(remainList))[indices.cpu()])
             else:
-                indices = list(remainList)
+                indices = [i for i in range(entropy2.shape[0])]#list(remainList)
 
-            knn_idxs_flag_val = perform_knnsb_selection(datadir, data_name, indices, fraction, selUsing='val') 
+            knn_idxs_flag_val = perform_knnsb_selection(datadir, data_name, curr_X_trn[indices],rem_predict[indices], 
+                fraction, selUsing='val') 
             #print(knn_idxs_flag_val)
             #print(len(knn_idxs_flag_val))
 
             ##print(len(knn_idxs_flag_val),len(indices))
-            knn_idxs_flag_val = list(np.array(indices)[knn_idxs_flag_val])
+            knn_idxs_flag_val = list(np.array(list(remainList))[indices.cpu()][knn_idxs_flag_val])
 
             remainList = remainList.difference(knn_idxs_flag_val)
             idxs.extend(knn_idxs_flag_val)
@@ -435,7 +444,8 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
         elif func_name == 'Random':
             state = np.random.get_state()
             np.random.seed(n*n)
-            new_idxs = gen_rand_prior_indices(list(remainList), size=no_points)
+            #new_idxs = gen_rand_prior_indices(list(remainList), size=no_points)
+            new_idxs = np.random.choice(list(remainList), size=no_points, replace=False)
             np.random.set_state(state)
             remainList = remainList.difference(new_idxs)
             idxs.extend(new_idxs)
@@ -451,7 +461,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
         elif func_name == 'Facility Location':
 
             if data_name == 'covertype':
-                new_idxs = run_stochastic_Facloc(curr_X_trn, y_rem_trn, bud)
+                new_idxs = run_stochastic_Facloc(curr_X_trn, rem_predict, bud)
             else:
                 new_idxs = setf_model.lazy_greedy_max(bud, curr_X_trn ,model)
             new_idxs = np.array(list(remainList))[new_idxs]

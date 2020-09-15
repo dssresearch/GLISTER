@@ -13,7 +13,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from matplotlib import pyplot as plt
-from models.set_function_all import SetFunctionFacLoc
+from models.set_function_act_learn import SetFunctionFacLoc
 from torch.utils.data.sampler import SubsetRandomSampler
 # from models.simpleNN_net import ThreeLayerNet
 #from models.set_function_craig import DeepSetFunction as CRAIG
@@ -139,7 +139,7 @@ if data_name == 'cifar10':
         if batch_idx == 0:
             x_tst = inputs
             y_tst = targets
-            x_tst_new = inputs.view(tst_batch_size, -1)
+            #x_tst_new = inputs.view(tst_batch_size, -1)
         else:
             x_tst = torch.cat([x_tst, inputs], dim=0)
             y_tst = torch.cat([y_tst, targets], dim=0)
@@ -151,10 +151,10 @@ print(exp_name, str(exp_start_time))
 print("Data sizes:", x_trn.shape, x_val.shape, x_tst.shape)
 # print(y_trn.shape, y_val.shape, y_tst.shape)
 
-def perform_knnsb_selection(datadir, dset_name,remain, budget, selUsing):
+def perform_knnsb_selection(datadir, dset_name,X,Y, budget, selUsing):
 
 
-    trndata = np.c_[x_trn.cpu()[remain].view(len(remain), -1), y_trn.cpu()[remain]]
+    trndata = np.c_[X.cpu().view(len(Y), -1), Y.cpu()]
     # Write out the trndata
     trn_filepath = os.path.join(datadir, 'act_'+'_knn_' + dset_name + '.trn')
     np.savetxt(trn_filepath, trndata, fmt='%.6f')
@@ -174,7 +174,7 @@ def perform_knnsb_selection(datadir, dset_name,remain, budget, selUsing):
     knnsb_args.append(trn_filepath)
     knnsb_args.append(val_filepath)
     knnsb_args.append(" ")  # File delimiter!!
-    knnsb_args.append(str(no_points/x_trn[remain].shape[0]))
+    knnsb_args.append(str(no_points/X.shape[0]))
     knnsb_args.append(indices_file)
     knnsb_args.append("1")  # indicates cts data. Deprecated.
     print("Obtaining the subset")
@@ -192,14 +192,14 @@ no_points = math.ceil(fraction*N/no_select)
 print("Budget, fraction and N:", no_points, fraction, N)
 # Transfer all the data to GPU
 d_t = time.time()
-x_trn, y_trn = x_trn.to('cpu'), y_trn.to('cpu')
-x_val, y_val = x_val.to('cpu'), y_val.to('cpu')
+#x_trn, y_trn = x_trn.to('cpu'), y_trn.to('cpu')
+#x_val, y_val = x_val.to('cpu'), y_val.to('cpu')
 print("Transferred data to device in time:", time.time() - d_t)
-print_every = 3
+print_every = 10
 
 def run_stochastic_Facloc(data, targets, budget):
     model = ResNet18(num_cls)
-    model = model.to(device='cpu')
+    model = model.to(device)
     approximate_error = 0.01
     per_iter_bud = 10
     num_iterations = int(budget/10)
@@ -208,14 +208,18 @@ def run_stochastic_Facloc(data, targets, budget):
     sample_size = int(len(data) / num_iterations * math.log(1 / approximate_error))
     #greedy_batch_size = 1200
     for i in range(num_iterations):
+        print(i)
         rem_indices = list(set(trn_indices).difference(set(facloc_indices)))
+        state = np.random.get_state()
+        np.random.seed(i*i)
         sub_indices = np.random.choice(rem_indices, size=sample_size, replace=False)
+        np.random.set_state(state)
         data_subset = data[sub_indices].cpu()
-        targets_subset = targets[sub_indices].cpu()
-        train_loader_greedy = []
-        train_loader_greedy.append((data_subset, targets_subset))
-        setf_model = SetFunctionFacLoc(device, train_loader_greedy)
-        idxs = setf_model.lazy_greedy_max(per_iter_bud, model)
+        #targets_subset = targets[sub_indices].cpu()
+        #train_loader_greedy = []
+        #train_loader_greedy.append((data_subset, targets_subset))
+        setf_model = SetFunctionFacLoc(device, 800)
+        idxs = setf_model.lazy_greedy_max(per_iter_bud,data_subset, model)
         facloc_indices.extend([sub_indices[idx] for idx in idxs])
     return facloc_indices
 
@@ -236,6 +240,10 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     criterion = nn.CrossEntropyLoss()
     criterion_nored = nn.CrossEntropyLoss(reduction='none')
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+
+    if func_name == 'Facility Location':
+        idxs = run_stochastic_Facloc(x_trn, y_trn, bud)
+        facility_loaction_warm_start = copy.deepcopy(idxs)
 
     remainList = set([i for i in range(N)])
     idxs = list(idxs)
@@ -277,8 +285,20 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     # idxs = start_rand_idxs
 
     def weight_reset(m):
-        if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-            m.reset_parameters()
+        torch.manual_seed(42)
+        torch.cuda.manual_seed(42)
+        np.random.seed(42)
+        random.seed(42)
+        torch.backends.cudnn.deterministic = True
+        
+        if isinstance(m, nn.Linear):
+            #m.reset_parameters()
+            m.weight.data.normal_(0.0, 0.02)
+            m.bias.data.fill_(0)
+        elif isinstance(m, nn.Conv2d):
+            nn.init.xavier_uniform(m.weight.data)
+            if m.bias is not None:
+                nn.init.xavier_uniform(m.bias.data)
 
     fn = nn.Softmax(dim=1)
     for n in range(no_select):
@@ -346,7 +366,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             total = 0
             cnt = 0
             predictions = []
-            for batch_idx, (inputs, targets) in enumerate(testloader):
+            for batch_idx, (inputs, targets) in enumerate(remloader):
                 inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
                 outputs = model(inputs)
                 predictions.append(outputs)
@@ -397,14 +417,17 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             #print(entropy2.shape)
             if 5*no_points < entropy2.shape[0]:
                 values,indices = entropy2.topk(5*no_points)
-                indices = list(np.array(list(remainList))[indices.cpu()])
+                #indices = list(np.array(list(remainList))[indices.cpu()])
             else:
-                indices = list(remainList)
+                indices = [i for i in range(entropy2.shape[0])]#list(remainList)
 
-            knn_idxs_flag_val = perform_knnsb_selection(datadir, data_name, indices, fraction, selUsing='val') 
-            
+            knn_idxs_flag_val = perform_knnsb_selection(datadir, data_name, curr_X_trn[indices],y_rem_trn[indices], 
+                fraction, selUsing='val') 
+            #print(knn_idxs_flag_val)
+            #print(len(knn_idxs_flag_val))
+
             ##print(len(knn_idxs_flag_val),len(indices))
-            knn_idxs_flag_val = list(np.array(indices)[knn_idxs_flag_val])
+            knn_idxs_flag_val = list(np.array(list(remainList))[indices.cpu()][knn_idxs_flag_val])
 
             remainList = remainList.difference(knn_idxs_flag_val)
             idxs.extend(knn_idxs_flag_val)
@@ -423,7 +446,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
 
         elif func_name == 'Facility Location':
 
-            new_idxs = run_stochastic_Facloc(curr_X_trn, y_rem_trn, no_points)
+            new_idxs = run_stochastic_Facloc(curr_X_trn, rem_predict, no_points)
             new_idxs = np.array(list(remainList))[new_idxs]
 
             remainList = remainList.difference(new_idxs)
@@ -453,7 +476,10 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     # Calculate Final SubsetTrn, FullTrn, Val and Test Loss
     # Calculate Val and Test Accuracy
     
-    return val_accies, test_accies, unlab_accies, idxs
+    if func_name == 'Facility Location':
+        return val_accies, test_accies, unlab_accies, idxs,facility_loaction_warm_start
+    else:
+        return val_accies, test_accies, unlab_accies, idxs
 
 def act_learn_online(function,start_rand_idxs, bud,lam=0.9):
     start = torch.cuda.Event(enable_timing=True)
@@ -549,11 +575,11 @@ def act_learn_online(function,start_rand_idxs, bud,lam=0.9):
                     y_rem_trn = rem_predict
                     cnt = cnt + 1
                 else:
-                    y_rem_trn = torch.cat([y_trn, rem_predict], dim=0)
+                    y_rem_trn = torch.cat([y_rem_trn, rem_predict], dim=0)
                 
                 correct += rem_predict.eq(targets).sum().item()
                 total += targets.size(0)
-            rem_acc = 100 * rem_correct / rem_total
+            rem_acc = 100 * correct / total
 
         val_accies[n] = val_acc
         test_accies[n] = tst_acc
@@ -746,7 +772,7 @@ facility_loaction_warm_start = start_idxs
 #facloc_idxs = [trainset.indices[x] for x in facloc_idxs]
 
 # Facility Location Run
-#fva, fta, fua, facloc_idxs = active_learning_taylor('Facility Location',facility_loaction_warm_start,no_points)
+fva, fta, fua, facloc_idxs,facility_loaction_warm_start = active_learning_taylor('Facility Location',facility_loaction_warm_start,no_points)
 #knn
 kva, kta,kua, knn_subset_idx = active_learning_taylor('FASS',facility_loaction_warm_start)
 #Badge
@@ -769,7 +795,7 @@ plt.figure()
 plt.plot(x_axis, t_va[plot_start_epoch:], 'b-', label='tay_v=val',marker='o')
 plt.plot(x_axis, kva[plot_start_epoch:], '#8c564b', label='FASS',marker='o')
 plt.plot(x_axis, rva[plot_start_epoch:], 'g-', label='random',marker='o')
-#plt.plot(x_axis, fva[plot_start_epoch:], 'pink', label='FacLoc',marker='o')
+plt.plot(x_axis, fva[plot_start_epoch:], 'pink', label='FacLoc',marker='o')
 plt.plot(x_axis, rand_t_va[plot_start_epoch:], 'k-', label='rand_reg_tay_v=val',marker='o')
 #plt.plot(x_axis, facloc_reg_t_va[plot_start_epoch:], 'y', label='facloc_reg_tay_v=val',marker='o')
 #plt.plot(x_axis, ft_va[plot_start_epoch:], 'orange', label='NON-tay_v=val',marker='o')
@@ -795,7 +821,7 @@ plt.figure()
 plt.plot(x_axis, t_ta[plot_start_epoch:], 'b-', label='tay_v=val',marker='o')
 plt.plot(x_axis, kta[plot_start_epoch:], '#8c564b', label='FASS',marker='o')
 plt.plot(x_axis, rta[plot_start_epoch:], 'g-', label='random',marker='o')
-#plt.plot(x_axis, fta[plot_start_epoch:], 'pink', label='FacLoc',marker='o')
+plt.plot(x_axis, fta[plot_start_epoch:], 'pink', label='FacLoc',marker='o')
 plt.plot(x_axis, rand_t_ta[plot_start_epoch:], 'k-', label='rand_reg_tay_v=val',marker='o')
 #plt.plot(x_axis, facloc_reg_t_ta[plot_start_epoch:], 'y', label='facloc_reg_tay_v=val',marker='o')
 #plt.plot(x_axis, ft_ta[plot_start_epoch:], 'orange', label='NON-tay_v=val',marker='o')
@@ -822,7 +848,7 @@ plt.figure()
 plt.plot(x_axis, t_ua[plot_start_epoch:], 'b-', label='tay_v=val',marker='o')
 plt.plot(x_axis, kva[plot_start_epoch:], '#8c564b', label='FASS',marker='o')
 plt.plot(x_axis, rua[plot_start_epoch:], 'g-', label='random',marker='o')
-#plt.plot(x_axis, fua[plot_start_epoch:], 'pink', label='FacLoc',marker='o')
+plt.plot(x_axis, fua[plot_start_epoch:], 'pink', label='FacLoc',marker='o')
 plt.plot(x_axis, rand_t_ua[plot_start_epoch:], 'k-', label='rand_reg_tay_v=val',marker='o')
 #plt.plot(x_axis, facloc_reg_t_ua[plot_start_epoch:], 'y', label='facloc_reg_tay_v=val',marker='o')
 #plt.plot(x_axis, ft_ua[plot_start_epoch:], 'orange', label='NON-tay_v=val',marker='o')
@@ -847,11 +873,10 @@ print("=======================================", file=logfile)
 print(exp_name, str(exp_start_time), file=logfile)
 print(data_name,":Budget = ", fraction, file=logfile)
 
-methods=["One Step Taylor",'Rand Reg One Step','FASS',\
-'Random',"BADGE"] #,"Full One Step" #'One step Perturbation' #,'Fac Loc Reg One Step' #'Facility Location'
-val_acc =[t_va,rand_t_va,kva,rva,bva] #,ft_va #facloc_reg_t_va, #fva,
-tst_acc =[t_ta,rand_t_ta,kta,rta,bta] #,ft_ta #facloc_reg_t_ta, fva,
-unlabel_acc =[t_ua,rand_t_ua,kua,rua,bua] #,ft_ua #facloc_reg_t_ua fua,
+methods=["One Step Taylor",'Rand Reg One Step','FASS','Facility Location','Random',"BADGE"] #,"Full One Step" #'One step Perturbation' #,'Fac Loc Reg One Step' #'Facility Location'
+val_acc =[t_va,rand_t_va,kva,fva,rva,bva] #,ft_va #facloc_reg_t_va, #
+tst_acc =[t_ta,rand_t_ta,kta,fta,rta,bta] #,ft_ta #facloc_reg_t_ta, 
+unlabel_acc =[t_ua,rand_t_ua,kua,fua,rua,bua] #,ft_ua #facloc_reg_t_ua 
 
 print("Validation Accuracy",file=logfile)
 print('---------------------------------------------------------------------',file=logfile)

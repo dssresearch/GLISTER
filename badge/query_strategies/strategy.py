@@ -64,10 +64,15 @@ class Strategy:
             np.random.seed(42)
             #random.seed(42)
             torch.backends.cudnn.deterministic = True
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
+            
+            if isinstance(m, nn.Linear):
                 #m.reset_parameters()
                 m.weight.data.normal_(0.0, 0.02)
                 m.bias.data.fill_(0)
+            elif isinstance(m, nn.Conv2d):
+                nn.init.xavier_uniform_(m.weight.data)
+                if m.bias is not None:
+                    nn.init.xavier_uniform_(m.bias.data)
 
         n_epoch = self.args['n_epoch']
         self.clf =  self.clf.apply(weight_reset).cuda()
@@ -77,7 +82,8 @@ class Strategy:
         optimizer = optim.SGD(self.clf.parameters(), lr = self.args['lr'])
 
         idxs_train = np.arange(self.n_pool)[self.idxs_lb]
-        loader_tr = DataLoader(self.handler(self.X[idxs_train], torch.Tensor(self.Y[idxs_train]).long()), **self.args['loader_tr_args'])
+        loader_tr = DataLoader(self.handler(self.X[idxs_train], torch.Tensor(self.Y[idxs_train]).long(),transform=self.args['transform']), 
+            shuffle=False,**self.args['loader_tr_args'])
    
         epoch = 1
         accCurrent = 0.
@@ -91,6 +97,7 @@ class Strategy:
                 optimizer = optim.SGD(self.clf.parameters(), lr = self.args['lr'])
 
     def predict(self, X, Y):
+
         if type(X) is np.ndarray:
             loader_te = DataLoader(self.handler(X, Y, transform=self.args['transformTest']),
                             shuffle=False, **self.args['loader_te_args'])
