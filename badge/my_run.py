@@ -18,7 +18,7 @@ sys.path.append('../')
 import math
 import random
 
-from utils.custom_dataset import CustomDataset_act, load_dataset_numpy, write_knndata
+from utils.custom_dataset import CustomDataset_WithId, load_dataset_numpy, write_knndata
 from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
 from utils.data_utils import load_dataset_pytorch
 #from models.simpleNN_net import *
@@ -170,7 +170,7 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
     if data_name == 'cifar10':
         handler = DataHandler3
     else:
-        handler = CustomDataset_act
+        handler = CustomDataset_WithId
 
     if data_name == 'cifar10':
         args = {'n_epoch': epoch, 

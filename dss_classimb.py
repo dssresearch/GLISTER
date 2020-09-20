@@ -17,8 +17,7 @@ from models.set_function_all import SetFunctionFacLoc, SetFunctionTaylor, SetFun
 from models.set_function_craig import SetFunction2 as CRAIG
 from models.set_function_ideas import SetFunctionTaylorDeep_ReLoss_Mean
 from sklearn.model_selection import train_test_split
-from utils.custom_dataset import load_dataset_numpy, write_knndata
-from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
+from utils.custom_dataset import load_dataset_custom
 import math
 import random
 from torch.utils.data import TensorDataset, DataLoader
@@ -54,44 +53,10 @@ print(exp_name, str(exp_start_time), file=logfile)
 
 #write_knndata(datadir, data_name)
 
-def perform_knnsb_selection(datadir, dset_name, budget, selUsing):
-    trn_filepath = os.path.join(datadir, feature+'_knn_' + dset_name + '.trn')
-    if selUsing == 'val':
-        val_filepath = os.path.join(datadir, feature+'knn_' + dset_name + '.val')
-    else:
-        val_filepath = trn_filepath
-
-    run_path = './run_data/'
-    output_dir = run_path + 'KNNSubmod_' + dset_name + '/'
-    indices_file = output_dir + feature+'_KNNSubmod_' + str((int)(budget*100)) + ".subset"
-    subprocess.call(["mkdir", output_dir])
-    knnsb_args = []
-    knnsb_args.append('../build/KNNSubmod')
-    knnsb_args.append(trn_filepath)
-    knnsb_args.append(val_filepath)
-    knnsb_args.append(" ")  # File delimiter!!
-    knnsb_args.append(str(budget))
-    knnsb_args.append(indices_file)
-    knnsb_args.append("1")  # indicates cts data. Deprecated.
-    print("Obtaining the subset")
-    subprocess.run(knnsb_args)
-    print("finished selection")
-    # Can make it return the indices_file if using with other function. 
-    idxs_knnsb = np.genfromtxt(indices_file, delimiter=',', dtype=int) # since they are indices!
-    return idxs_knnsb
-
-
-if data_name in ['dna','sklearn-digits','satimage','svmguide1','letter','shuttle','ijcnn1','sensorless','connect_4','sensit_seismic','usps']:
-    fullset, valset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
-    write_knndata_old(datadir, data_name,feature=feature)
-elif data_name in ['mnist' , "fashion-mnist"]:
-    fullset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
-    write_knndata_old(datadir, data_name,feature=feature)
-else:
-    fullset, valset, testset, num_cls = load_dataset_numpy(datadir, data_name,feature=feature)
-    write_knndata(datadir, data_name,feature=feature)
-
 if data_name == 'mnist':
+
+    fullset, valset, testset, num_cls = load_mnist_cifar (datadir, data_name,feature=feature)
+
     x_trn, y_trn = fullset.data, fullset.targets
     x_tst, y_tst = testset.data, testset.targets
     x_trn = x_trn.view(x_trn.shape[0], -1)
@@ -99,6 +64,9 @@ if data_name == 'mnist':
     # Get validation data: Its 10% of the entire (full) training data
     x_trn, x_val, y_trn, y_val = train_test_split(x_trn, y_trn, test_size=0.1, random_state=42)
 else:
+
+    fullset, valset, testset, data_dims,num_cls = load_dataset_custom(datadir, data_name,feature=feature,True)
+    
     x_trn, y_trn = torch.from_numpy(fullset[0]).float(), torch.from_numpy(fullset[1]).long()
     x_tst, y_tst = torch.from_numpy(testset[0]).float(), torch.from_numpy(testset[1]).long()
     x_val, y_val = torch.from_numpy(valset[0]).float(), torch.from_numpy(valset[1]).long()
@@ -629,21 +597,18 @@ rand_prior_idxs = gen_rand_prior_indices(size=bud)
 craig_valacc, craig_tstacc, craig_valloss, craig_tstloss, craig_substrn_losses, craig_fulltrn_losses, \
 craig_val_losses, craig_subset_idxs = train_model_craig(start_idxs, bud, True,False)
 
-# Every epoch CRAIG Run
-#e_craig_valacc, e_craig_tstacc, e_craig_valloss, e_craig_tstloss, e_craig_substrn_losses, e_craig_fulltrn_losses, \
-#e_craig_val_losses, e_craig_subset_idxs = train_model_craig(start_idxs, bud, False,True)
-
 # Random Run
 rv1, rt1, rv2, rt2, rand_substrn_losses, rand_fulltrn_losses, rand_val_losses, idxs, rand_grads = train_model_taylor('Random',
                                                                                                          start_idxs)
 
-
 # Random with prior Run
-rpv1, rpt1, rpv2, rpt2, rand_prior_substrn_losses, rand_prior_fulltrn_losses, rand_prior_val_losses, prior_idxs, rand_prior_grads = train_model_taylor('Random with Prior',
-                                                                                                         rand_prior_idxs)
+if feature=='classimb':
+    rpv1, rpt1, rpv2, rpt2, rand_prior_substrn_losses, rand_prior_fulltrn_losses, rand_prior_val_losses, prior_idxs, \
+    rand_prior_grads = train_model_taylor('Random with Prior',rand_prior_idxs)
+
 # Facility Location Run
-fv1, ft1, fv2, ft2, facloc_substrn_losses, facloc_fulltrn_losses, facloc_val_losses, facloc_idxs, facloc_grads = train_model_taylor(
-    'Facility Location', None, bud)
+#fv1, ft1, fv2, ft2, facloc_substrn_losses, facloc_fulltrn_losses, facloc_val_losses, facloc_idxs, facloc_grads = train_model_taylor(
+#    'Facility Location', None, bud)
 
 # Online algo run
 t_val_valacc, t_val_tstacc, t_val_valloss, t_val_tstloss, tay_fval_substrn_losses, tay_fval_fulltrn_losses, tay_fval_val_losses, subset_idxs, tay_grads = train_model_taylor(
@@ -667,25 +632,26 @@ knn_valacc_flagval, knn_tstacc_flagval, knn_valloss_flagval, knn_tstloss_flagval
 rand_t_val_valacc, rand_t_val_tstacc, rand_t_val_valloss, rand_t_val_tstloss, rand_tay_fval_substrn_losses, rand_tay_fval_fulltrn_losses, rand_tay_fval_val_losses, rand_subset_idxs, rand_reg_grads = train_model_taylor(
     'Random Greedy', start_idxs, bud, True)
 
-# Taylor After Training
+# Full Training
 mod_t_val_valacc, mod_t_val_tstacc, mod_t_val_valloss, mod_t_val_tstloss, mod_tay_fval_substrn_losses, mod_tay_fval_fulltrn_losses, mod_tay_fval_val_losses, mod_subset_idxs = train_model_mod_taylor(start_idxs, bud, True)
 
 
 plot_start_epoch = 0
 ###### Subset Trn loss with val = VAL #############
 plt.figure()
-plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_substrn_losses[plot_start_epoch:], 'b-', label='tay_v=val')
+plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_substrn_losses[plot_start_epoch:], 'b-', label='GLISTER-ONLINE')
 plt.plot(np.arange(plot_start_epoch, num_epochs), craig_substrn_losses[plot_start_epoch:], '#750D86',
          label='CRAIG')
 #plt.plot(np.arange(plot_start_epoch, num_epochs), e_craig_substrn_losses[plot_start_epoch:], 'm',
 #         label='CRAIG ev epo')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_substrn_losses[plot_start_epoch:], 'g-', label='random')
-plt.plot(np.arange(plot_start_epoch, num_epochs), rand_prior_substrn_losses[plot_start_epoch:], '#DD4477', label='random_prior')
+if feature=='classimb':
+    plt.plot(np.arange(plot_start_epoch, num_epochs), rand_prior_substrn_losses[plot_start_epoch:], '#DD4477', label='random_prior')
 #plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_substrn_losses[plot_start_epoch:], 'pink', label='FacLoc')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_tay_fval_substrn_losses[plot_start_epoch:], 'k-',
-         label='rand_reg_tay_v=val')
+         label='rand_reg_GLISTER-ONLINE')
 plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_reg_tay_fval_substrn_losses[plot_start_epoch:], 'y',
-         label='facloc_reg_tay_v=val')
+         label='facloc_reg_GLISTER-ONLINE')
 plt.plot(np.arange(plot_start_epoch, num_epochs), knn_ftrn_substrn_losses, 'orange', label='knn_v=trn')
 plt.plot(np.arange(plot_start_epoch, num_epochs), knn_fval_substrn_losses, 'r-', label='knn_v=val')
 plt.plot(np.arange(plot_start_epoch, num_epochs), mod_tay_fval_substrn_losses[plot_start_epoch:], 'pink', label='Full Training')
@@ -702,16 +668,17 @@ plt.clf()
 ###### Full Trn loss with val = VAL #############
 plt.figure()
 
-plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_fulltrn_losses[plot_start_epoch:], 'b-', label='tay_v=val')
+plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_fulltrn_losses[plot_start_epoch:], 'b-', label='GLISTER-ONLINE')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_fulltrn_losses[plot_start_epoch:], 'g-', label='random')
-plt.plot(np.arange(plot_start_epoch, num_epochs), rand_prior_fulltrn_losses[plot_start_epoch:], '#DD4477', label='random_prior')
+if feature=='classimb':
+    plt.plot(np.arange(plot_start_epoch, num_epochs), rand_prior_fulltrn_losses[plot_start_epoch:], '#DD4477', label='random_prior')
 plt.plot(np.arange(plot_start_epoch, num_epochs), craig_fulltrn_losses[plot_start_epoch:], '#750D86', label='CRAIG')
 #plt.plot(np.arange(plot_start_epoch, num_epochs), e_craig_fulltrn_losses[plot_start_epoch:], 'm', label='CRAIG ev epo')
 #plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_fulltrn_losses[plot_start_epoch:], 'pink', label='FacLoc')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_tay_fval_fulltrn_losses[plot_start_epoch:], 'k-',
-         label='rand_reg_tay_v=val')
+         label='rand_reg_GLISTER-ONLINE')
 plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_reg_tay_fval_fulltrn_losses[plot_start_epoch:], 'y',
-         label='facloc_reg_tay_v=val')
+         label='facloc_reg_GLISTER-ONLINE')
 plt.plot(np.arange(plot_start_epoch, num_epochs), knn_ftrn_fulltrn_losses, 'orange', label='knn_v=trn')
 plt.plot(np.arange(plot_start_epoch, num_epochs), knn_fval_fulltrn_losses, 'r-', label='knn_v=val')
 plt.plot(np.arange(plot_start_epoch, num_epochs), mod_tay_fval_fulltrn_losses[plot_start_epoch:], 'pink', label='Full Training')
@@ -728,17 +695,18 @@ plt.clf()
 ########################################################################
 ###### Validation loss with val = VAL #############
 plt.figure()
-plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_val_losses[plot_start_epoch:], 'b-', label='tay_v=val')
+plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_val_losses[plot_start_epoch:], 'b-', label='GLISTER-ONLINE')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_val_losses[plot_start_epoch:], 'g-', label='random')
-plt.plot(np.arange(plot_start_epoch, num_epochs), rand_prior_val_losses[plot_start_epoch:], '#DD4477', label='random_prior')
+if feature=='classimb':
+    plt.plot(np.arange(plot_start_epoch, num_epochs), rand_prior_val_losses[plot_start_epoch:], '#DD4477', label='random_prior')
 plt.plot(np.arange(plot_start_epoch, num_epochs), craig_val_losses[plot_start_epoch:], '#750D86', label='CRAIG')
 #plt.plot(np.arange(plot_start_epoch, num_epochs), craig_val_losses[plot_start_epoch:], 'm', label='CRAIG ev epo')
 
 #plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_val_losses[plot_start_epoch:], 'pink', label='FacLoc')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_tay_fval_val_losses[plot_start_epoch:], 'k-',
-         label='rand_reg_tay_v=val')
+         label='rand_reg_GLISTER-ONLINE')
 plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_reg_tay_fval_val_losses[plot_start_epoch:], 'y',
-         label='facloc_reg_tay_v=val')
+         label='facloc_reg_GLISTER-ONLINE')
 #DD4477
 plt.plot(np.arange(plot_start_epoch, num_epochs), knn_ftrn_val_losses, 'orange', label='knn_v=trn')
 plt.plot(np.arange(plot_start_epoch, num_epochs), knn_fval_val_losses, 'r-', label='knn_v=val')
@@ -763,7 +731,8 @@ print('*| Supervised Facility Location with Validation=VAL     |', knn_valacc_fl
 print('*| Supervised Facility Location with Validation=TRN     |', knn_valacc_flagtrn, '  | ', knn_tstacc_flagtrn, ' |', file=logfile)
 print('*| Taylor with Validation=VAL     |', t_val_valacc, '  | ', t_val_tstacc, ' |', file=logfile)
 print('*| Random Selection               |', rv1, '  | ', rt1, ' |', file=logfile)
-print('*| Random Prior Selection               |', rpv1, '  | ', rpt1, ' |', file=logfile)
+if feature=='classimb':
+    print('*| Random Prior Selection               |', rpv1, '  | ', rpt1, ' |', file=logfile)
 #print('*| CRAIG Selected every epoch               |', e_craig_valacc, '  | ', e_craig_tstacc, ' |', file=logfile)
 print('*| CRAIG Selection               |', craig_valacc, '  | ', craig_tstacc, ' |', file=logfile)
 print('*| Full Training               |', mod_t_val_valacc,'  | ', mod_t_val_tstacc,' |',file=logfile)
@@ -849,31 +818,3 @@ with open(all_logs_dir + '/random_subset_selected.txt', 'w') as log_file:
 facloc_idxs = list(facloc_idxs)
 with open(all_logs_dir + '/facloc_subset_selected.txt', 'w') as log_file:
     print(facloc_idxs, file=log_file)
-
-tay_grads = list(tay_grads)
-with open(all_logs_dir + '/one_step_grads.txt', 'w') as log_file:
-    print(tay_grads, file=log_file)
-
-rand_reg_grads = list(rand_reg_grads)
-with open(all_logs_dir + '/rand_reg_grads.txt', 'w') as log_file:
-    print(rand_reg_grads, file=log_file)
-
-rand_prior_grads = list(rand_prior_grads)
-with open(all_logs_dir + '/rand_prior_grads.txt', 'w') as log_file:
-    print(rand_prior_grads, file=log_file)
-
-craig_subset_idxs = list(craig_subset_idxs)
-with open(all_logs_dir + '/craig_subset_selected.txt', 'w') as log_file:
-    print(craig_subset_idxs, file=log_file)
-
-facloc_reg_grads = list(facloc_reg_grads)
-with open(all_logs_dir + '/facloc_reg_grads.txt', 'w') as log_file:
-    print(facloc_reg_grads, file=log_file)
-
-rand_grads = list(rand_grads)
-with open(all_logs_dir + '/random_grads.txt', 'w') as log_file:
-    print(rand_grads, file=log_file)
-
-facloc_grads = list(facloc_grads)
-with open(all_logs_dir + '/facloc_grads.txt', 'w') as log_file:
-    print(facloc_grads, file=log_file)
