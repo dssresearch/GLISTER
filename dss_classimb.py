@@ -65,7 +65,7 @@ if data_name == 'mnist':
     x_trn, x_val, y_trn, y_val = train_test_split(x_trn, y_trn, test_size=0.1, random_state=42)
 else:
 
-    fullset, valset, testset, data_dims,num_cls = load_dataset_custom(datadir, data_name,feature=feature, isnumpy=True)
+    fullset, valset, testset, data_dims, num_cls = load_dataset_custom(datadir, data_name,feature=feature, isnumpy=True)
     
     x_trn, y_trn = torch.from_numpy(fullset[0]).float(), torch.from_numpy(fullset[1]).long()
     x_tst, y_tst = torch.from_numpy(testset[0]).float(), torch.from_numpy(testset[1]).long()
@@ -607,8 +607,8 @@ if feature=='classimb':
     rand_prior_grads = train_model_taylor('Random with Prior',rand_prior_idxs)
 
 # Facility Location Run
-#fv1, ft1, fv2, ft2, facloc_substrn_losses, facloc_fulltrn_losses, facloc_val_losses, facloc_idxs, facloc_grads = train_model_taylor(
-#    'Facility Location', None, bud)
+fv1, ft1, fv2, ft2, facloc_substrn_losses, facloc_fulltrn_losses, facloc_val_losses, facloc_idxs, facloc_grads = train_model_taylor(
+    'Facility Location', None, bud)
 
 # Online algo run
 t_val_valacc, t_val_tstacc, t_val_valloss, t_val_tstloss, tay_fval_substrn_losses, tay_fval_fulltrn_losses, tay_fval_val_losses, subset_idxs, tay_grads = train_model_taylor(
