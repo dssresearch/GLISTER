@@ -14,16 +14,18 @@ from models.simpleNN_net import *  # ThreeLayerNet
 from models.logistic_regression import LogisticRegNet
 from models.set_function_all import SetFunctionFacLoc, SetFunctionTaylor, SetFunctionTaylorDeep, \
     SetFunctionBatch  # as SetFunction #SetFunctionCompare
-from models.set_function_craig import SetFunction2 as CRAIG
+#from models.set_function_craig import SetFunction2 as CRAIG
+from models.set_function_craig import SetFunctionCRAIG_Super as CRAIG
 from models.set_function_ideas import SetFunctionTaylorDeep_ReLoss_Mean
 from sklearn.model_selection import train_test_split
-from utils.custom_dataset import load_dataset_custom, load_mnist_cifar
+from utils.custom_dataset import load_dataset_numpy, write_knndata
+from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
 import math
 import random
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.metrics import precision_score, recall_score
 
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else "cpu"
 # #device = "cpu"
 print("Using Device:", device)
 
@@ -53,31 +55,67 @@ print(exp_name, str(exp_start_time), file=logfile)
 
 #write_knndata(datadir, data_name)
 
-if data_name == 'mnist':
+def perform_knnsb_selection(datadir, dset_name, budget, selUsing):
+    
+    run_path = './run_data/'
+    output_dir = run_path + 'KNNSubmod_' + dset_name + '/'
+    indices_file = output_dir + feature+'_KNNSubmod_' + str((int)(budget*100)) + ".subset"
+    
+    if os.path.exists(indices_file): 
+        idxs_knnsb = np.genfromtxt(indices_file, delimiter=',', dtype=int) # since they are indices!
+        return idxs_knnsb
 
-    fullset, valset, testset, num_cls = load_mnist_cifar(datadir, data_name, feature=feature)
+    trn_filepath = os.path.join(datadir, feature+'_knn_' + dset_name + '.trn')
 
+    if selUsing == 'val':
+        val_filepath = os.path.join(datadir, feature+'knn_' + dset_name + '.val')
+    else:
+        val_filepath = trn_filepath
+
+    subprocess.call(["mkdir", output_dir])
+    knnsb_args = []
+    knnsb_args.append('../build/KNNSubmod')
+    knnsb_args.append(trn_filepath)
+    knnsb_args.append(val_filepath)
+    knnsb_args.append(" ")  # File delimiter!!
+    knnsb_args.append(str(budget))
+    knnsb_args.append(indices_file)
+    knnsb_args.append("1")  # indicates cts data. Deprecated.
+    print("Obtaining the subset")
+    subprocess.run(knnsb_args)
+    print("finished selection")
+    # Can make it return the indices_file if using with other function. 
+    idxs_knnsb = np.genfromtxt(indices_file, delimiter=',', dtype=int) # since they are indices!
+    return idxs_knnsb
+
+if data_name in ['dna','sklearn-digits','satimage','svmguide1','letter','shuttle','ijcnn1','sensorless','connect_4','sensit_seismic','usps']:
+    fullset, valset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
+    write_knndata_old(datadir, data_name,feature=feature)
+elif data_name in ['mnist' , "fashion-mnist"]:
+    fullset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
+    write_knndata_old(datadir, data_name,feature=feature)
+else:
+    fullset, valset, testset, num_cls = load_dataset_numpy(datadir, data_name)
+    write_knndata(datadir, data_name)
+
+if data_name == 'mnist' or data_name == "fashion-mnist":
     x_trn, y_trn = fullset.data, fullset.targets
     x_tst, y_tst = testset.data, testset.targets
     x_trn = x_trn.view(x_trn.shape[0], -1)
     x_tst = x_tst.view(x_tst.shape[0], -1)
     # Get validation data: Its 10% of the entire (full) training data
     x_trn, x_val, y_trn, y_val = train_test_split(x_trn, y_trn, test_size=0.1, random_state=42)
-else:
 
-    fullset, valset, testset, data_dims, num_cls = load_dataset_custom(datadir, data_name,feature=feature, isnumpy=True)
-    
+else:
     x_trn, y_trn = torch.from_numpy(fullset[0]).float(), torch.from_numpy(fullset[1]).long()
     x_tst, y_tst = torch.from_numpy(testset[0]).float(), torch.from_numpy(testset[1]).long()
     x_val, y_val = torch.from_numpy(valset[0]).float(), torch.from_numpy(valset[1]).long()
-
-write_knndata(datadir, data_name,feature=feature)
 
 print('-----------------------------------------')
 print(exp_name, str(exp_start_time))
 print("Data sizes:", x_trn.shape, x_val.shape, x_tst.shape)
 # print(y_trn.shape, y_val.shape, y_tst.shape)
-np.random.seed(42)
+
 N, M = x_trn.shape
 bud = int(fraction * N)
 print("Budget, fraction and N:", bud, fraction, N)
@@ -107,65 +145,12 @@ for item in range(math.ceil(len(x_trn) / train_batch_size)):
     target = y_trn[item * train_batch_size:(item + 1) * train_batch_size]
     train_loader.append((inputs, target))
 
-def perform_knnsb_selection(datadir, dset_name, budget, selUsing):
-    
-    run_path = './knn_results/'
-    output_dir = run_path + 'KNNSubmod_' + dset_name + '/'
-    indices_file = output_dir + feature+'_KNNSubmod_' + str((int)(budget*100)) + ".subset"
-    
-    if os.path.exists(indices_file): 
-        idxs_knnsb = np.genfromtxt(indices_file, delimiter=',', dtype=int) # since they are indices!
-        return idxs_knnsb
-
-    trn_filepath = os.path.join(datadir, feature+'_knn_' + dset_name + '.trn')
-
-    if selUsing == 'val':
-        val_filepath = os.path.join(datadir, feature+'knn_' + dset_name + '.val')
-    else:
-        val_filepath = trn_filepath
-
-    subprocess.call(["mkdir","-p", output_dir])
-    knnsb_args = []
-    knnsb_args.append('./build/KNNSubmod')
-    knnsb_args.append(trn_filepath)
-    knnsb_args.append(val_filepath)
-    knnsb_args.append(" ")  # File delimiter!!
-    knnsb_args.append(str(budget))
-    knnsb_args.append(indices_file)
-    knnsb_args.append("1")  # indicates cts data. Deprecated.
-    print("Obtaining the subset")
-    subprocess.run(knnsb_args)
-    print("finished selection")
-    # Can make it return the indices_file if using with other function. 
-    idxs_knnsb = np.genfromtxt(indices_file, delimiter=',', dtype=int) # since they are indices!
-    return idxs_knnsb
-
-
-def gen_rand_prior_indices(size):
-
-    per_sample_count = [len(torch.where(y_trn == x)[0]) for x in np.arange(num_cls)]
-    per_sample_budget = int(size/num_cls)
-    total_set = list(np.arange(N))
-    indices = []
-    count = 0
-    for i in range(num_cls):
-        label_idxs = torch.where(y_trn == i)[0].cpu().numpy()
-        if per_sample_count[i] > per_sample_budget:
-            indices.extend(list(np.random.choice(label_idxs, size=per_sample_budget, replace=False)))
-        else:
-            indices.extend(label_idxs)
-            count += (per_sample_budget - per_sample_count[i])
-    for i in indices:
-        total_set.remove(i)
-    indices.extend(list(np.random.choice(total_set, size= count, replace=False)))
-    return indices
-
 
 def train_model_craig(start_rand_idxs, bud, convex=True,every=False):
     torch.manual_seed(42)
     np.random.seed(42)
-    model = LogisticRegNet(M, num_cls)
-    #model = TwoLayerNet(M, num_cls, 100)
+    #model = LogisticRegNet(M, num_cls)
+    model = TwoLayerNet(M, num_cls, 100)
     # model = ThreeLayerNet(M, num_cls, 5, 5)
     if torch.cuda.device_count() > 1:
         print("Using:", torch.cuda.device_count(), "GPUs!")
@@ -180,15 +165,22 @@ def train_model_craig(start_rand_idxs, bud, convex=True,every=False):
     substrn_losses = np.zeros(num_epochs)
     fulltrn_losses = np.zeros(num_epochs)
     val_losses = np.zeros(num_epochs)
-    setf = CRAIG(device, train_loader, True)
+    #dataset = TensorDataset(x_trn, y_trn)
+    #dataloader = DataLoader(dataset, shuffle=False, batch_size=train_batch_size)
+    #setf = CRAIG(device, train_loader, True)
+    setf = CRAIG(device, x_trn,y_trn, True)
     # idxs = start_rand_idxs
-    idxs, gammas = setf.lazy_greedy_max(bud, model)
+    idxs, gammas = setf.class_wise(bud, model)
+    #gammas = gammas.type(torch.float)/N
+
     for i in range(num_epochs):
+        #print(i)
+        # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
         inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
         optimizer.zero_grad()
         scores = model(inputs)
         losses = criterion_nored(scores, targets)
-        loss = torch.dot(torch.from_numpy(np.array(gammas)).to(device).type(torch.float), losses)
+        loss = torch.dot(torch.from_numpy(np.array(gammas)).to(device).type(torch.float)/N, losses)
         loss.backward()
         optimizer.step()
         with torch.no_grad():
@@ -202,9 +194,11 @@ def train_model_craig(start_rand_idxs, bud, convex=True,every=False):
         val_losses[i] = val_loss.item()
         if not convex :
             if not every and (i + 1) % select_every == 0:
-                idxs, gammas = setf.lazy_greedy_max(bud, model)
+                idxs, gammas = setf.class_wise(bud, model)
+                #gammas = gammas.type(torch.float)/N
             else:
-                idxs, gammas = setf.lazy_greedy_max(bud, model)
+                idxs, gammas = setf.class_wise(bud, model)
+                #gammas = gammas.type(torch.float)/N
     model.eval()
     with torch.no_grad():
         full_trn_out = model(x_trn)
@@ -233,15 +227,16 @@ def train_model_craig(start_rand_idxs, bud, convex=True,every=False):
     print("Validation Loss and Accuracy:", val_loss.item(), val_acc)
     print("Test Data Loss and Accuracy:", test_loss.item(), tst_acc)
     print('-----------------------------------')
+    idxs = [x.item() for x in idxs]
     return val_acc, tst_acc, val_loss.item(), test_loss.item(), substrn_losses, fulltrn_losses, val_losses, idxs
 
 
 def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fac_loc_idx=None):
     torch.manual_seed(42)
     np.random.seed(42)
-    # model = ThreeLayerNet(M, num_cls, 100, 100)
-    model = LogisticRegNet(M, num_cls)
-    #model = TwoLayerNet(M, num_cls, 100)
+    #model = ThreeLayerNet(M, num_cls, 100, 100)
+    #model = LogisticRegNet(M, num_cls)
+    model = TwoLayerNet(M, num_cls, 100)
     # if data_name == 'mnist':
     #     model = MnistNet()
     if torch.cuda.device_count() > 1:
@@ -316,13 +311,13 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
         print("Starting Online OneStep Run with taylor with random perturbation!")
     elif func_name == 'Proximal':
         print("Starting Online Proximal OneStep Run with taylor!")
-    elif func_name == 'Random with Prior':
-        print("Starting Random with Prior Run with taylor!")
     substrn_losses = np.zeros(num_epochs)
     substrn_grads = []
     fulltrn_losses = np.zeros(num_epochs)
     val_losses = np.zeros(num_epochs)
     # idxs = start_rand_idxs
+    classes,count = torch.unique(y_trn[idxs],return_counts=True)
+    print(count)
     for i in range(num_epochs):
         # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
         inputs, targets = x_trn[idxs], y_trn[idxs]
@@ -352,7 +347,7 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
         if i % print_every == 0:  # Print Training and Validation Loss
             print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss:', loss.item(), full_trn_loss.item(), val_loss.item())
 
-        if ((i + 1) % select_every == 0) and func_name not in ['Facility Location', 'Random', 'Random with Prior','KNNSB']:
+        if ((i + 1) % select_every == 0) and func_name not in ['Facility Location', 'Random',"KNNSB"]:
             substrn_grads.append(grad_value)
             # val_in, val_t = x_val.to(device), y_val.to(device)  # Transfer them to device
             cached_state_dict = copy.deepcopy(model.state_dict())
@@ -389,6 +384,8 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
                 new_idxs = setf_model.naive_greedy_max(bud, clone_dict)  # , grads_idxs
                 idxs = new_idxs  # update the current set
             model.load_state_dict(cached_state_dict)
+            classes,count = torch.unique(y_trn[idxs],return_counts=True)
+            print(count)
 
     # Calculate Final SubsetTrn, FullTrn, Val and Test Loss
     # Calculate Val and Test Accuracy
@@ -442,7 +439,7 @@ def train_model_online_taylor_deep(start_rand_idxs, bud, valid):
     torch.manual_seed(42)
     np.random.seed(42)
     # model = ThreeLayerNet(M, num_cls, 5, 5)
-    # model = LogisticRegNet(M, num_cls)
+    #model = LogisticRegNet(M, num_cls)
     model = TwoLayerNet(M, num_cls, 100)
     # if data_name == 'mnist':
     #     model = MnistNet()
@@ -571,8 +568,8 @@ def train_model_online_taylor_deep(start_rand_idxs, bud, valid):
 def train_model_mod_taylor(start_rand_idxs, bud, valid):
     torch.manual_seed(42)
     np.random.seed(42)
-    model = LogisticRegNet(M, num_cls)
-    #model = TwoLayerNet(M, num_cls, 100)
+    #model = LogisticRegNet(M, num_cls)
+    model = TwoLayerNet(M, num_cls, 100)
     # model = ThreeLayerNet(M, num_cls, 5, 5)
     if torch.cuda.device_count() > 1:
         print("Using:", torch.cuda.device_count(), "GPUs!")
@@ -628,69 +625,75 @@ def train_model_mod_taylor(start_rand_idxs, bud, valid):
 
 start_idxs = np.random.choice(N, size=bud, replace=False)
 random_subset_idx = [x for x in start_idxs]
-rand_prior_idxs = gen_rand_prior_indices(size=bud)
+## KnnSB selection with Flag = TRN and FLAG = VAL
+#knn_idxs_flag_trn = perform_knnsb_selection(datadir, data_name, fraction, selUsing='trn')
+#knn_idxs_flag_val = perform_knnsb_selection(datadir, data_name, fraction, selUsing='val')
+
 # CRAIG Run
 craig_valacc, craig_tstacc, craig_valloss, craig_tstloss, craig_substrn_losses, craig_fulltrn_losses, \
-craig_val_losses, craig_subset_idxs = train_model_craig(start_idxs, bud, True,False)
+craig_val_losses, craig_subset_idxs = train_model_craig(start_idxs, bud, True, True)
+
+# Every epoch CRAIG Run
+#e_craig_valacc, e_craig_tstacc, e_craig_valloss, e_craig_tstloss, e_craig_substrn_losses, e_craig_fulltrn_losses, \
+#e_craig_val_losses, e_craig_subset_idxs = train_model_craig(start_idxs, bud, False,True)
+
 
 # Random Run
 rv1, rt1, rv2, rt2, rand_substrn_losses, rand_fulltrn_losses, rand_val_losses, idxs, rand_grads = train_model_taylor('Random',
                                                                                                          start_idxs)
-
-# Random with prior Run
-if feature=='classimb':
-    rpv1, rpt1, rpv2, rpt2, rand_prior_substrn_losses, rand_prior_fulltrn_losses, rand_prior_val_losses, prior_idxs, \
-    rand_prior_grads = train_model_taylor('Random with Prior',rand_prior_idxs)
-
 # Facility Location Run
 fv1, ft1, fv2, ft2, facloc_substrn_losses, facloc_fulltrn_losses, facloc_val_losses, facloc_idxs, facloc_grads = train_model_taylor(
     'Facility Location', None, bud)
+
+## Training with KnnSB idxs with Flag = TRN and FLAG = VAL
+#knn_valacc_flagtrn, knn_tstacc_flagtrn, knn_valloss_flagtrn, knn_tstloss_flagtrn, knn_ftrn_substrn_losses, knn_ftrn_fulltrn_losses,\
+# knn_ftrn_val_losses, knn_ftrn_idxs, knn_ftrn_grads = train_model_taylor("KNNSB",knn_idxs_flag_trn)
+
+#knn_valacc_flagval, knn_tstacc_flagval, knn_valloss_flagval, knn_tstloss_flagval, knn_fval_substrn_losses, knn_fval_fulltrn_losses,\
+# knn_fval_val_losses, knn_fval_idxs, knn_fval_grads = train_model_taylor("KNNSB",knn_idxs_flag_val)
+
 
 # Online algo run
 t_val_valacc, t_val_tstacc, t_val_valloss, t_val_tstloss, tay_fval_substrn_losses, tay_fval_fulltrn_losses, tay_fval_val_losses, subset_idxs, tay_grads = train_model_taylor(
     'Taylor Online', start_idxs, bud, True)
 
+# Online algo run
+t_val_valacc, t_val_tstacc, t_val_valloss, t_val_tstloss, tay_fval_substrn_losses, tay_fval_fulltrn_losses, tay_fval_val_losses, subset_idxs, tay_grads = train_model_taylor(
+    'Taylor Online', start_idxs, bud, True)
+
+# Online algo run
+#f_val_valacc, f_val_tstacc, f_val_valloss, f_val_tstloss, f_fval_substrn_losses, f_fval_fulltrn_losses, f_fval_val_losses, f_subset_idxs, f_grads = train_model_taylor(
+#    'Full OneStep', start_idxs, bud, True)
+
 # Facility Location OneStep Runs
-facloc_reg_t_val_valacc, facloc_reg_t_val_tstacc, facloc_reg_t_val_valloss, facloc_reg_t_val_tstloss, facloc_reg_tay_fval_substrn_losses, facloc_reg_tay_fval_fulltrn_losses, facloc_reg_tay_fval_val_losses, facloc_reg_subset_idxs, facloc_reg_grads = train_model_taylor(
-    'Facloc Regularized', start_idxs, bud, True, facloc_idxs)
+#facloc_reg_t_val_valacc, facloc_reg_t_val_tstacc, facloc_reg_t_val_valloss, facloc_reg_t_val_tstloss, facloc_reg_tay_fval_substrn_losses, facloc_reg_tay_fval_fulltrn_losses, facloc_reg_tay_fval_val_losses, facloc_reg_subset_idxs, facloc_reg_grads = train_model_taylor(
+#    'Facloc Regularized', start_idxs, bud, True, facloc_idxs)
 
-## KnnSB selection with Flag = TRN and FLAG = VAL
-knn_idxs_flag_trn = perform_knnsb_selection(datadir, data_name, fraction, selUsing='trn')
-knn_idxs_flag_val = perform_knnsb_selection(datadir, data_name, fraction, selUsing='val')
-
-## Training with KnnSB idxs with Flag = TRN and FLAG = VAL
-knn_valacc_flagtrn, knn_tstacc_flagtrn, knn_valloss_flagtrn, knn_tstloss_flagtrn, knn_ftrn_substrn_losses, knn_ftrn_fulltrn_losses,\
- knn_ftrn_val_losses, knn_ftrn_idxs, knn_ftrn_grads = train_model_taylor("KNNSB",knn_idxs_flag_trn)
-
-knn_valacc_flagval, knn_tstacc_flagval, knn_valloss_flagval, knn_tstloss_flagval, knn_fval_substrn_losses, knn_fval_fulltrn_losses,\
- knn_fval_val_losses, knn_fval_idxs, knn_fval_grads = train_model_taylor("KNNSB",knn_idxs_flag_val)
 # Randomized Greedy Taylor OneStep Runs
 rand_t_val_valacc, rand_t_val_tstacc, rand_t_val_valloss, rand_t_val_tstloss, rand_tay_fval_substrn_losses, rand_tay_fval_fulltrn_losses, rand_tay_fval_val_losses, rand_subset_idxs, rand_reg_grads = train_model_taylor(
     'Random Greedy', start_idxs, bud, True)
 
-# Full Training
+# Taylor After Training
 mod_t_val_valacc, mod_t_val_tstacc, mod_t_val_valloss, mod_t_val_tstloss, mod_tay_fval_substrn_losses, mod_tay_fval_fulltrn_losses, mod_tay_fval_val_losses, mod_subset_idxs = train_model_mod_taylor(start_idxs, bud, True)
 
 
 plot_start_epoch = 0
 ###### Subset Trn loss with val = VAL #############
 plt.figure()
-plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_substrn_losses[plot_start_epoch:], 'b-', label='GLISTER-ONLINE')
-plt.plot(np.arange(plot_start_epoch, num_epochs), craig_substrn_losses[plot_start_epoch:], '#750D86',
-         label='CRAIG')
-#plt.plot(np.arange(plot_start_epoch, num_epochs), e_craig_substrn_losses[plot_start_epoch:], 'm',
-#         label='CRAIG ev epo')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), knn_ftrn_substrn_losses, 'orange', label='knn_submod')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), knn_fval_substrn_losses, 'r-', label='knn_v=val')
+plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_substrn_losses[plot_start_epoch:], 'b-', label='GLISTER ONLINE')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), craig_substrn_losses[plot_start_epoch:], '#750D86',
+#         label='CRAIG')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), f_fval_substrn_losses[plot_start_epoch:], 'r-', label='Full OneStep')
+plt.plot(np.arange(plot_start_epoch, num_epochs), craig_val_losses[plot_start_epoch:], 'm', label='CRAIG')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_substrn_losses[plot_start_epoch:], 'g-', label='random')
-if feature=='classimb':
-    plt.plot(np.arange(plot_start_epoch, num_epochs), rand_prior_substrn_losses[plot_start_epoch:], '#DD4477', label='random_prior')
-#plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_substrn_losses[plot_start_epoch:], 'pink', label='FacLoc')
+plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_substrn_losses[plot_start_epoch:], 'pink', label='knn_submod')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), mod_tay_fval_substrn_losses[plot_start_epoch:], 'pink', label='Full Training')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_tay_fval_substrn_losses[plot_start_epoch:], 'k-',
          label='rand_reg_GLISTER-ONLINE')
-plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_reg_tay_fval_substrn_losses[plot_start_epoch:], 'y',
-         label='facloc_reg_GLISTER-ONLINE')
-plt.plot(np.arange(plot_start_epoch, num_epochs), knn_ftrn_substrn_losses, 'orange', label='knn_v=trn')
-plt.plot(np.arange(plot_start_epoch, num_epochs), knn_fval_substrn_losses, 'r-', label='knn_v=val')
-plt.plot(np.arange(plot_start_epoch, num_epochs), mod_tay_fval_substrn_losses[plot_start_epoch:], 'pink', label='Full Training')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_reg_tay_fval_substrn_losses[plot_start_epoch:], 'y',
+#         label='facloc_reg_GLISTER-ONLINE')
 
 plt.legend()
 plt.xlabel('Epochs')
@@ -703,22 +706,18 @@ plt.clf()
 ########################################################################
 ###### Full Trn loss with val = VAL #############
 plt.figure()
-
+#plt.plot(np.arange(plot_start_epoch, num_epochs), knn_ftrn_fulltrn_losses, 'orange', label='knn_submod')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), knn_fval_fulltrn_losses, 'r-', label='knn_v=val')
 plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_fulltrn_losses[plot_start_epoch:], 'b-', label='GLISTER-ONLINE')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), f_fval_fulltrn_losses[plot_start_epoch:], 'r-', label='Full OneStep')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_fulltrn_losses[plot_start_epoch:], 'g-', label='random')
-if feature=='classimb':
-    plt.plot(np.arange(plot_start_epoch, num_epochs), rand_prior_fulltrn_losses[plot_start_epoch:], '#DD4477', label='random_prior')
-plt.plot(np.arange(plot_start_epoch, num_epochs), craig_fulltrn_losses[plot_start_epoch:], '#750D86', label='CRAIG')
-#plt.plot(np.arange(plot_start_epoch, num_epochs), e_craig_fulltrn_losses[plot_start_epoch:], 'm', label='CRAIG ev epo')
-#plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_fulltrn_losses[plot_start_epoch:], 'pink', label='FacLoc')
+plt.plot(np.arange(plot_start_epoch, num_epochs), craig_fulltrn_losses[plot_start_epoch:], 'm', label='CRAIG')
+plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_fulltrn_losses[plot_start_epoch:], 'pink', label='knn_submod')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), mod_tay_fval_fulltrn_losses[plot_start_epoch:], 'pink', label='Full Training')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_tay_fval_fulltrn_losses[plot_start_epoch:], 'k-',
          label='rand_reg_GLISTER-ONLINE')
-plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_reg_tay_fval_fulltrn_losses[plot_start_epoch:], 'y',
-         label='facloc_reg_GLISTER-ONLINE')
-plt.plot(np.arange(plot_start_epoch, num_epochs), knn_ftrn_fulltrn_losses, 'orange', label='knn_v=trn')
-plt.plot(np.arange(plot_start_epoch, num_epochs), knn_fval_fulltrn_losses, 'r-', label='knn_v=val')
-plt.plot(np.arange(plot_start_epoch, num_epochs), mod_tay_fval_fulltrn_losses[plot_start_epoch:], 'pink', label='Full Training')
-
+#plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_reg_tay_fval_fulltrn_losses[plot_start_epoch:], 'y',
+#         label='facloc_reg_GLISTER-ONLINE')
 
 plt.legend()
 plt.xlabel('Epochs')
@@ -731,23 +730,19 @@ plt.clf()
 ########################################################################
 ###### Validation loss with val = VAL #############
 plt.figure()
+#plt.plot(np.arange(plot_start_epoch, num_epochs), knn_ftrn_val_losses, 'orange', label='knn_submod')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), knn_fval_val_losses, 'r-', label='knn_v=val')
 plt.plot(np.arange(plot_start_epoch, num_epochs), tay_fval_val_losses[plot_start_epoch:], 'b-', label='GLISTER-ONLINE')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), f_fval_val_losses[plot_start_epoch:], 'r-', label='Full OneStep')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_val_losses[plot_start_epoch:], 'g-', label='random')
-if feature=='classimb':
-    plt.plot(np.arange(plot_start_epoch, num_epochs), rand_prior_val_losses[plot_start_epoch:], '#DD4477', label='random_prior')
-plt.plot(np.arange(plot_start_epoch, num_epochs), craig_val_losses[plot_start_epoch:], '#750D86', label='CRAIG')
-#plt.plot(np.arange(plot_start_epoch, num_epochs), craig_val_losses[plot_start_epoch:], 'm', label='CRAIG ev epo')
-
-#plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_val_losses[plot_start_epoch:], 'pink', label='FacLoc')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), craig_val_losses[plot_start_epoch:], '#750D86', label='CRAIG')
+plt.plot(np.arange(plot_start_epoch, num_epochs), craig_val_losses[plot_start_epoch:], 'm', label='CRAIG')
+plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_val_losses[plot_start_epoch:], 'pink', label='knn_submod')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), mod_tay_fval_val_losses[plot_start_epoch:], 'pink', label='Full Training')
 plt.plot(np.arange(plot_start_epoch, num_epochs), rand_tay_fval_val_losses[plot_start_epoch:], 'k-',
          label='rand_reg_GLISTER-ONLINE')
-plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_reg_tay_fval_val_losses[plot_start_epoch:], 'y',
-         label='facloc_reg_GLISTER-ONLINE')
-#DD4477
-plt.plot(np.arange(plot_start_epoch, num_epochs), knn_ftrn_val_losses, 'orange', label='knn_v=trn')
-plt.plot(np.arange(plot_start_epoch, num_epochs), knn_fval_val_losses, 'r-', label='knn_v=val')
-plt.plot(np.arange(plot_start_epoch, num_epochs), mod_tay_fval_val_losses[plot_start_epoch:], 'pink', label='Full Training')
-
+#plt.plot(np.arange(plot_start_epoch, num_epochs), facloc_reg_tay_fval_val_losses[plot_start_epoch:], 'y',
+#         label='facloc_reg_GLISTER-ONLINE')
 
 
 plt.legend()
@@ -762,20 +757,19 @@ print(data_name, ":Budget = ", fraction, file=logfile)
 print('---------------------------------------------------------------------', file=logfile)
 print('|Algo                            | Val Acc       |   Test Acc       |', file=logfile)
 print('| -------------------------------|:-------------:| ----------------:|', file=logfile)
-#print('*| Facility Location             |', fv1, '  | ', ft1, ' |', file=logfile)
-print('*| Supervised Facility Location with Validation=VAL     |', knn_valacc_flagval, '  | ', knn_tstacc_flagval, ' |', file=logfile)
-print('*| Supervised Facility Location with Validation=TRN     |', knn_valacc_flagtrn, '  | ', knn_tstacc_flagtrn, ' |', file=logfile)
+print('*| KNN SUBMOD           |', fv1, '  | ', ft1, ' |', file=logfile)
+#print('*| Supervised Facility Location with Validation=VAL     |', knn_valacc_flagval, '  | ', knn_tstacc_flagval, ' |', file=logfile)
+#print('*| Supervised Facility Location with Validation=TRN     |', knn_valacc_flagtrn, '  | ', knn_tstacc_flagtrn, ' |', file=logfile)
+#print('*| Full onestep Validation=VAL     |', f_val_valacc, '  | ', f_val_tstacc, ' |', file=logfile)
 print('*| Taylor with Validation=VAL     |', t_val_valacc, '  | ', t_val_tstacc, ' |', file=logfile)
 print('*| Random Selection               |', rv1, '  | ', rt1, ' |', file=logfile)
-if feature=='classimb':
-    print('*| Random Prior Selection               |', rpv1, '  | ', rpt1, ' |', file=logfile)
-#print('*| CRAIG Selected every epoch               |', e_craig_valacc, '  | ', e_craig_tstacc, ' |', file=logfile)
 print('*| CRAIG Selection               |', craig_valacc, '  | ', craig_tstacc, ' |', file=logfile)
+#print('*| CRAIG Selected every epoch               |', e_craig_valacc, '  | ', e_craig_tstacc, ' |', file=logfile)
 print('*| Full Training               |', mod_t_val_valacc,'  | ', mod_t_val_tstacc,' |',file=logfile)
 print('*| random regularized Taylor after training               |', rand_t_val_valacc, '  | ', rand_t_val_tstacc, ' |',
       file=logfile)
-print('*| facloc regularizec Taylor after training               |', facloc_reg_t_val_valacc, '  | ',
-      facloc_reg_t_val_tstacc, ' |', file=logfile)
+#print('*| facloc regularizec Taylor after training               |', facloc_reg_t_val_valacc, '  | ',
+#      facloc_reg_t_val_tstacc, ' |', file=logfile)
 print("\n", file=logfile)
 
 print("=========Random Results==============", file=logfile)
@@ -787,17 +781,17 @@ print("=========CRAIG Results==============", file=logfile)
 print("*CRAIG Validation LOSS:", craig_valloss, file=logfile)
 print("*CRAIG Test Data LOSS:", craig_tstloss, file=logfile)
 print("*CRAIG Full Trn Data LOSS:", craig_fulltrn_losses[-1], file=logfile)
-
-'''print("=========CRAIG Selected every epoch Results==============", file=logfile)
+"""
+print("=========CRAIG Selected every epoch Results==============", file=logfile)
 print("*CRAIG Validation LOSS:", e_craig_valloss, file=logfile)
 print("*CRAIG Test Data LOSS:", e_craig_tstloss, file=logfile)
-print("*CRAIG Full Trn Data LOSS:", e_craig_fulltrn_losses[-1], file=logfile)'''
-
-'''print("=========FacLoc Results==============", file=logfile)
+print("*CRAIG Full Trn Data LOSS:", e_craig_fulltrn_losses[-1], file=logfile)
+"""
+print("=========FacLoc Results==============", file=logfile)
 print("*Facloc Validation LOSS:", fv2, file=logfile)
 print("*Facloc Test Data LOSS:", ft2, file=logfile)
-print("*Facloc Full Trn Data LOSS:", facloc_fulltrn_losses[-1], file=logfile)'''
-
+print("*Facloc Full Trn Data LOSS:", facloc_fulltrn_losses[-1], file=logfile)
+'''
 print("=========Supervised FacLoc Results with Validation=VAL==============", file=logfile)
 print("*Facloc Validation LOSS:", knn_valloss_flagval, file=logfile)
 print("*Facloc Test Data LOSS:", knn_tstloss_flagval, file=logfile)
@@ -808,6 +802,11 @@ print("*Facloc Validation LOSS:", knn_valloss_flagtrn, file=logfile)
 print("*Facloc Test Data LOSS:", knn_tstloss_flagtrn, file=logfile)
 print("*Facloc Full Trn Data LOSS:", knn_ftrn_fulltrn_losses[-1], file=logfile)
 
+print("=========Online Selection with Validation Set===================", file=logfile)
+print("*Taylor v=VAL Validation LOSS:", f_val_valloss, file=logfile)
+print("*Taylor v=VAL Test Data LOSS:", f_val_tstloss, file=logfile)
+print("*Taylor v=VAL Full Trn Data LOSS:", f_fval_fulltrn_losses[-1], file=logfile)'''
+
 print("=========Online Selection Taylor with Validation Set===================", file=logfile)
 print("*Taylor v=VAL Validation LOSS:", t_val_valloss, file=logfile)
 print("*Taylor v=VAL Test Data LOSS:", t_val_tstloss, file=logfile)
@@ -817,12 +816,13 @@ print("=========Random Regularized Online Selection Taylor with Validation Set==
 print("*Taylor v=VAL Validation LOSS:", rand_t_val_valloss, file=logfile)
 print("*Taylor v=VAL Test Data LOSS:", rand_t_val_tstloss, file=logfile)
 print("*Taylor v=VAL Full Trn Data LOSS:", rand_tay_fval_fulltrn_losses[-1], file=logfile)
-
+"""
 print("=========Facility Location Loss regularized Online Selection Taylor with Validation Set===================",
       file=logfile)
 print("*Taylor v=VAL Validation LOSS:", facloc_reg_t_val_valloss, file=logfile)
 print("*Taylor v=VAL Test Data LOSS:", facloc_reg_t_val_tstloss, file=logfile)
 print("*Taylor v=VAL Full Trn Data LOSS:", facloc_reg_tay_fval_fulltrn_losses[-1], file=logfile)
+"""
 print("=============================================================================================", file=logfile)
 print("---------------------------------------------------------------------------------------------", file=logfile)
 print("\n", file=logfile)
@@ -835,17 +835,13 @@ rand_subset_idxs = list(rand_subset_idxs)
 with open(all_logs_dir + '/rand_reg_one_step_subset_selected.txt', 'w') as log_file:
     print(rand_subset_idxs, file=log_file)
 
-rand_prior_idxs = list(rand_prior_idxs)
-with open(all_logs_dir + '/rand_prior_subset_selected.txt', 'w') as log_file:
-    print(rand_prior_idxs, file=log_file)
-
-craig_subset_idxs = list(craig_subset_idxs)
+'''craig_subset_idxs = list(craig_subset_idxs)
 with open(all_logs_dir + '/craig_subset_selected.txt', 'w') as log_file:
-    print(craig_subset_idxs, file=log_file)
+    print(craig_subset_idxs, file=log_file)'''
 
-facloc_reg_subset_idxs = list(facloc_reg_subset_idxs)
-with open(all_logs_dir + '/facloc_reg_one_step_subset_selected.txt', 'w') as log_file:
-    print(facloc_reg_subset_idxs, file=log_file)
+#facloc_reg_subset_idxs = list(facloc_reg_subset_idxs)
+#with open(all_logs_dir + '/facloc_reg_one_step_subset_selected.txt', 'w') as log_file:
+#    print(facloc_reg_subset_idxs, file=log_file)
 
 random_subset_idx = list(random_subset_idx)
 with open(all_logs_dir + '/random_subset_selected.txt', 'w') as log_file:
@@ -854,3 +850,27 @@ with open(all_logs_dir + '/random_subset_selected.txt', 'w') as log_file:
 facloc_idxs = list(facloc_idxs)
 with open(all_logs_dir + '/facloc_subset_selected.txt', 'w') as log_file:
     print(facloc_idxs, file=log_file)
+
+tay_grads = list(tay_grads)
+with open(all_logs_dir + '/one_step_grads.txt', 'w') as log_file:
+    print(tay_grads, file=log_file)
+
+rand_reg_grads = list(rand_reg_grads)
+with open(all_logs_dir + '/rand_reg_grads.txt', 'w') as log_file:
+    print(rand_reg_grads, file=log_file)
+
+craig_subset_idxs = list(craig_subset_idxs)
+with open(all_logs_dir + '/craig_subset_selected.txt', 'w') as log_file:
+    print(craig_subset_idxs, file=log_file)
+
+#facloc_reg_grads = list(facloc_reg_grads)
+#with open(all_logs_dir + '/facloc_reg_grads.txt', 'w') as log_file:
+#    print(facloc_reg_grads, file=log_file)
+
+rand_grads = list(rand_grads)
+with open(all_logs_dir + '/random_grads.txt', 'w') as log_file:
+    print(rand_grads, file=log_file)
+
+#facloc_grads = list(facloc_grads)
+#with open(all_logs_dir + '/facloc_grads.txt', 'w') as log_file:
+#    print(facloc_grads, file=log_file)

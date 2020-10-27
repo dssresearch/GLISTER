@@ -16,8 +16,9 @@ from models.simpleNN_net import * #ThreeLayerNet
 from models.logistic_regression import LogisticRegNet
 from models.set_function_act_learn import SetFunctionFacLoc,SetFunctionTaylorLastLinear as SetFunctionTaylor, SetFunctionBatch
 from sklearn.model_selection import train_test_split
-from utils.custom_dataset import CustomDataset_act, load_dataset_numpy, write_knndata
-from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
+#from utils.custom_dataset import CustomDataset_act, load_dataset_numpy, write_knndata
+#from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
+from utils.custom_dataset import load_dataset_custom, CustomDataset_WithId
 import math
 import random
 from torch.distributions import Categorical
@@ -30,14 +31,6 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 # #device = "cpu"
 print("Using Device:", device)
 
-## Convert to this argparse 
-'''datadir = sys.argv[1]
-data_name = sys.argv[2]
-fraction = float(sys.argv[3])
-num_epochs = int(sys.argv[4])
-select_every = int(sys.argv[5])#70
-warm_method = 0  # whether to use warmstart-onestep (1) or online (0)
-num_runs = 1    # number of random runs'''
 
 datadir = sys.argv[1]
 data_name = sys.argv[2]
@@ -49,9 +42,9 @@ print_every = 50
 
 learning_rate = 0.05
 if feature != 'classimb':
-    all_logs_dir = './results/ActLearn_new/' + data_name + '/' + str(fraction) + '/' + str(no_select)
+    all_logs_dir = './results/ActLearn/' + data_name + '/' + str(fraction) + '/' + str(no_select)
 else:
-    all_logs_dir = './results/ActLearn_new/' + data_name + '_imbalance/' + str(fraction) + '/' + str(no_select)
+    all_logs_dir = './results/ActLearn/' + data_name + '_imbalance/' + str(fraction) + '/' + str(no_select)
 print(all_logs_dir)
 subprocess.run(["mkdir", "-p", all_logs_dir])
 path_logfile = os.path.join(all_logs_dir, data_name + '.txt') 
@@ -62,57 +55,25 @@ print(exp_name)
 exp_start_time = datetime.datetime.now()
 
 
-if data_name in ['dna','sklearn-digits','satimage','svmguide1','letter','shuttle','ijcnn1','sensorless','connect_4','sensit_seismic','usps','adult']:
-    fullset, valset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
-    write_knndata_old(datadir, data_name,feature=feature)
-elif data_name in ['mnist' , "fashion-mnist"]:
-    fullset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
-    write_knndata_old(datadir, data_name,feature=feature)
-else:
-    fullset, valset, testset, num_cls = load_dataset_numpy(datadir, data_name,feature=feature)
-    write_knndata(datadir, data_name,feature=feature)
+if data_name == 'mnist':
 
-if data_name == 'mnist' or data_name == "fashion-mnist":
+    fullset, valset, testset, num_cls = load_mnist_cifar(datadir, data_name, feature=feature)
+
     x_trn, y_trn = fullset.data, fullset.targets
     x_tst, y_tst = testset.data, testset.targets
-    x_trn = x_trn.view(x_trn.shape[0], -1).float()
-    x_tst = x_tst.view(x_tst.shape[0], -1).float()
-    y_trn = y_trn.long()
-    y_tst = y_tst.long()
-    # Get validation data: Its 10% of the entire (full) training dat_a
+    x_trn = x_trn.view(x_trn.shape[0], -1)
+    x_tst = x_tst.view(x_tst.shape[0], -1)
+    # Get validation data: Its 10% of the entire (full) training data
     x_trn, x_val, y_trn, y_val = train_test_split(x_trn, y_trn, test_size=0.1, random_state=42)
-
-    if feature=='classimb':
-        samples_per_class = torch.zeros(num_cls)
-        
-        for i in range(num_cls):
-            samples_per_class[i] = len(torch.where(y_trn == i)[0])
-            
-        min_samples = int(torch.min(samples_per_class) * 0.1)
-        selected_classes = np.random.choice(torch.arange(num_cls), size=int(0.3 * num_cls), replace=False)
-        for i in range(num_cls):
-            if i == 0:
-                if i in selected_classes:
-                    subset_idxs = np.random.choice(torch.where(y_trn == i)[0], size=min_samples, replace=False)
-                else:
-                    subset_idxs = torch.where(y_trn == i)[0]
-                x_trn_new = x_trn[subset_idxs]
-                y_trn_new = y_trn[subset_idxs]
-            else:
-                if i in selected_classes:
-                    subset_idxs = np.random.choice(torch.where(y_trn == i)[0], size=min_samples, replace=False)
-                else:
-                    subset_idxs = torch.where(y_trn == i)[0]
-                x_trn_new = torch.cat((x_trn_new, x_trn[subset_idxs]))
-                y_trn_new = torch.cat((y_trn_new, y_trn[subset_idxs]))
-
-        x_trn = x_trn_new
-        y_trn = y_trn_new
-
 else:
+
+    fullset, valset, testset, data_dims, num_cls = load_dataset_custom(datadir, data_name,feature=feature, isnumpy=True)
+    
     x_trn, y_trn = torch.from_numpy(fullset[0]).float(), torch.from_numpy(fullset[1]).long()
     x_tst, y_tst = torch.from_numpy(testset[0]).float(), torch.from_numpy(testset[1]).long()
     x_val, y_val = torch.from_numpy(valset[0]).float(), torch.from_numpy(valset[1]).long()
+
+write_knndata(datadir, data_name,feature=feature)
 
 
 print('-----------------------------------------')
@@ -138,7 +99,7 @@ def perform_knnsb_selection(datadir, dset_name,X,Y, budget, selUsing):
     trn_filepath = os.path.join(datadir, 'act_'+feature+'_knn_' + dset_name + '.trn')
     np.savetxt(trn_filepath, trndata, fmt='%.6f')
     
-    run_path = './run_data/'
+    run_path = './knn_results/'
     output_dir = run_path + 'KNNSubmod_' + dset_name + '/'
     indices_file = output_dir + 'act_'+feature+'_KNNSubmod_' + str((int)(budget*100)) + ".subset"
 
@@ -147,9 +108,9 @@ def perform_knnsb_selection(datadir, dset_name,X,Y, budget, selUsing):
     else:
         val_filepath = trn_filepath
 
-    subprocess.call(["mkdir", output_dir])
+    subprocess.call(["mkdir","-p", output_dir])
     knnsb_args = []
-    knnsb_args.append('../build/KNNSubmod')
+    knnsb_args.append('./build/KNNSubmod')
     knnsb_args.append(trn_filepath)
     knnsb_args.append(val_filepath)
     knnsb_args.append(" ")  # File delimiter!!
@@ -312,7 +273,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     model =  model.apply(weight_reset).cuda()
     #print(model.linear2.weight)
     for n in range(no_select):
-        loader_tr = DataLoader(CustomDataset_act(x_trn[idxs], y_trn[idxs], transform=None),batch_size=no_points)
+        loader_tr = DataLoader(CustomDataset_WithId(x_trn[idxs], y_trn[idxs], transform=None),batch_size=no_points)
         model.train()
         for i in range(num_epochs):
             # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
