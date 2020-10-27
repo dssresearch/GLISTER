@@ -18,7 +18,7 @@ from models.set_function_act_learn import SetFunctionFacLoc,SetFunctionTaylorLas
 from sklearn.model_selection import train_test_split
 #from utils.custom_dataset import CustomDataset_act, load_dataset_numpy, write_knndata
 #from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
-from utils.custom_dataset import load_dataset_custom, CustomDataset_WithId
+from utils.custom_dataset import load_dataset_custom, CustomDataset_WithId, load_mnist_cifar, write_knndata
 import math
 import random
 from torch.distributions import Categorical

@@ -17,7 +17,7 @@ from models.set_function_all import SetFunctionFacLoc, SetFunctionTaylor, SetFun
 from models.set_function_craig import SetFunction2 as CRAIG
 from models.set_function_ideas import SetFunctionTaylorDeep_ReLoss_Mean
 from sklearn.model_selection import train_test_split
-from utils.custom_dataset import load_dataset_custom, load_mnist_cifar
+from utils.custom_dataset import load_dataset_custom, load_mnist_cifar, write_knndata
 import math
 import random
 from torch.utils.data import TensorDataset, DataLoader
@@ -71,7 +71,7 @@ else:
     x_tst, y_tst = torch.from_numpy(testset[0]).float(), torch.from_numpy(testset[1]).long()
     x_val, y_val = torch.from_numpy(valset[0]).float(), torch.from_numpy(valset[1]).long()
 
-write_knndata(datadir, data_name,feature=feature)
+write_knndata(datadir, data_name, feature=feature)
 
 print('-----------------------------------------')
 print(exp_name, str(exp_start_time))
