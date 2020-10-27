@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 from models.simpleNN_net import * #ThreeLayerNet
 from models.logistic_regression import LogisticRegNet
-from models.set_function_act_learn import SetFunctionFacLoc, SetFunctionTaylor, SetFunctionBatch
+from models.set_function_act_learn import SetFunctionFacLoc,SetFunctionTaylorLastLinear as SetFunctionTaylor, SetFunctionBatch
 from sklearn.model_selection import train_test_split
 from utils.custom_dataset import CustomDataset_act,load_dataset_numpy, write_knndata
 from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
@@ -49,9 +49,9 @@ print_every = 50
 
 learning_rate = 0.05
 if feature != 'classimb':
-    all_logs_dir = './results/ActLearn/' + data_name + '/' + str(fraction) + '/' + str(no_select)
+    all_logs_dir = './results/ActLearn_new/' + data_name + '/' + str(fraction) + '/' + str(no_select)
 else:
-    all_logs_dir = './results/ActLearn/' + data_name + '_imbalance/' + str(fraction) + '/' + str(no_select)
+    all_logs_dir = './results/ActLearn_new/' + data_name + '_imbalance/' + str(fraction) + '/' + str(no_select)
 print(all_logs_dir)
 subprocess.run(["mkdir", "-p", all_logs_dir])
 path_logfile = os.path.join(all_logs_dir, data_name + '.txt') 
@@ -221,10 +221,10 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     model = TwoLayerNet(M, num_cls, 100)
     # if data_name == 'mnist':
     #     model = MnistNet()
-    if torch.cuda.device_count() > 1:
+    '''if torch.cuda.device_count() > 1:
         print("Using:", torch.cuda.device_count(), "GPUs!")
         model = nn.DataParallel(model)
-        cudnn.benchmark = True
+        cudnn.benchmark = True'''
 
     model = model.to(device)
 
@@ -358,7 +358,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             #print(accFinal / len(loader_tr.dataset.X))
 
             #if i % print_every == 0:  # Print Training and Validation Loss
-        print( n+1,'Time', 'SubsetTrn', loss.item())#, ,FullTrn,ValLoss: full_trn_loss.item(), val_loss.item())
+        #print( n+1,'Time', 'SubsetTrn', loss.item())#, ,FullTrn,ValLoss: full_trn_loss.item(), val_loss.item())
 
         curr_X_trn = x_trn[list(remainList)]
         curr_Y_trn = y_trn[list(remainList)]
@@ -397,6 +397,8 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
         val_accies[n] = val_acc
         test_accies[n] = tst_acc
         unlab_accies[n] = rem_acc
+
+        print( n+1,'Time', 'Test acc', tst_acc)
 
         #if ((i + 1) % select_every == 0) and func_name not in ['Facility Location','Random']:
             # val_in, val_t = x_val.to(device), y_val.to(device)  # Transfer them to device

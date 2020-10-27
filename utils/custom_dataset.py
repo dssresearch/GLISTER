@@ -196,7 +196,7 @@ def census_load(path,dim, save_data=False):
         np.save(target_np_path, Y_label)
     return (X_data, Y_label)
 
-def create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst):
+def create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls):
 
     samples_per_class = np.zeros(num_cls)
     val_samples_per_class = np.zeros(num_cls)
@@ -247,7 +247,7 @@ def create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst):
 
     return x_trn_new, y_trn_new.reshape(-1),x_val_new, y_val_new.reshape(-1), x_tst_new,y_tst_new.reshape(-1)
 
-def create_noisy(y_trn):
+def create_noisy(y_trn,num_cls):
     
     noise_size = int(len(y_trn) * 0.8)
     noise_indices = np.random.choice(np.arange(len(y_trn)), size=noise_size, replace=False)
@@ -277,10 +277,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -312,10 +312,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -323,9 +323,9 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -348,10 +348,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -359,13 +359,13 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
         return fullset, valset, testset, data_dims,num_cls 
 
-     elif dset_name == "letter":
+    elif dset_name == "letter":
         trn_file = os.path.join(datadir, 'letter.scale.trn')
         val_file = os.path.join(datadir, 'letter.scale.val')
         tst_file = os.path.join(datadir, 'letter.scale.tst')
@@ -384,10 +384,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -395,9 +395,9 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -423,10 +423,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -434,9 +434,9 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -457,10 +457,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -468,9 +468,9 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -491,10 +491,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -502,9 +502,9 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -529,10 +529,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -540,9 +540,9 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -561,10 +561,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -572,11 +572,11 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
-        return fullset, valset, testset, data_dims,num_cls 
+        return fullset, valset, testset, x_trn.shape[1],num_cls 
 
     elif dset_name in ['prior_shift_large_linsep_4','conv_shift_large_linsep_4','red_large_linsep_4','expand_large_linsep_4',
     'shrink_large_linsep_4','red_conv_shift_large_linsep_4',"linsep_4","large_linsep_4"]:
@@ -591,10 +591,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst, y_tst = csv_file_load(tst_file, dim=data_dims)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -602,13 +602,13 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
         return fullset, valset, testset, data_dims,num_cls 
 
-    elif dset_name in ['prior_shift_clf_2', 'prior_shift_gauss_2','conv_shift_clf_2', 'conv_shift_gauss_2',"gauss_2", "clf_2"]:
+    elif dset_name in ['prior_shift_clf_2', 'prior_shift_gauss_2','conv_shift_clf_2', 'conv_shift_gauss_2',"gauss_2", "clf_2","linsep"]:
         
         trn_file = os.path.join(datadir, dset_name+'.trn')
         val_file = os.path.join(datadir, dset_name+'.val')
@@ -625,10 +625,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -636,9 +636,9 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -647,7 +647,7 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
 
         data_dims = 54
         num_cls = 7
-        x_trn, y_trn = libsvm_file_load(trn_file, dim=data_dims)
+        x_trn, y_trn = csv_file_load(trn_file, dim=data_dims)
        
         y_trn -= 1  # First Class should be zero
         
@@ -660,10 +660,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -671,9 +671,9 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
         return fullset, valset, testset, data_dims,num_cls
 
@@ -694,10 +694,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst)
+            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn)
+            y_trn = create_noisy(y_trn,num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)
@@ -705,9 +705,9 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn,device)
-            valset = CustomDataset(x_val, y_val,device)
-            testset = CustomDataset(x_tst, y_tst,device)
+            fullset = CustomDataset(x_trn, y_trn)
+            valset = CustomDataset(x_val, y_val)
+            testset = CustomDataset(x_tst, y_tst)
 
         return fullset, valset, testset, data_dims,num_cls
 
@@ -725,7 +725,7 @@ def load_mnist_cifar (datadir, dset_name,feature):
             torchvision.transforms.Normalize((0.1307,), (0.3081,))
         ])
         num_cls = 10
-        fullset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=mnist_transform)
+        fullset = torchvision.datasets.MNIST(root='../../data', train=True, download=True, transform=mnist_transform)
         
         if feature=='classimb':
             samples_per_class = torch.zeros(num_cls)
@@ -747,10 +747,50 @@ def load_mnist_cifar (datadir, dset_name,feature):
                     subset_idxs.extend(batch_subset_idxs)
             fullset = torch.utils.data.Subset(fullset, subset_idxs)
         
-        valset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=mnist_val_transform)
-        testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=mnist_transform)
+        valset = torchvision.datasets.MNIST(root='../../data', train=True, download=True, transform=mnist_val_transform)
+        testset = torchvision.datasets.MNIST(root='../../data', train=False, download=True, transform=mnist_transform)
         
         return fullset, valset, testset, num_cls
+
+    elif dset_name == "fashion-mnist":
+
+        mnist_transform = transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize((0.1307,), (0.3081,))
+        ])
+
+        mnist_val_transform = transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize((0.1307,), (0.3081,))
+        ])
+        num_cls = 10
+        fullset = torchvision.datasets.FashionMNIST(root='../../data', train=True, download=True, transform=mnist_transform)
+        
+        if feature=='classimb':
+            samples_per_class = torch.zeros(num_cls)
+            for i in range(num_cls):
+                samples_per_class[i] = len(torch.where(fullset.targets == i)[0])
+            min_samples = int(torch.min(samples_per_class) * 0.1)
+            selected_classes = np.random.choice(np.arange(num_cls), size=int(0.3 * num_cls), replace=False)
+            for i in range(num_cls):
+                if i == 0:
+                    if i in selected_classes:
+                        subset_idxs = list(np.random.choice(torch.where(fullset.targets == i)[0].cpu().numpy(), size=min_samples, replace=False))
+                    else:
+                        subset_idxs = list(torch.where(fullset.targets == i)[0].cpu().numpy())
+                else:
+                    if i in selected_classes:
+                        batch_subset_idxs = list(np.random.choice(torch.where(fullset.targets == i)[0].cpu().numpy(), size=min_samples, replace=False))
+                    else:
+                        batch_subset_idxs = list(torch.where(fullset.targets == i)[0].cpu().numpy())
+                    subset_idxs.extend(batch_subset_idxs)
+            fullset = torch.utils.data.Subset(fullset, subset_idxs)
+        
+        valset = torchvision.datasets.FashionMNIST(root='../../data', train=True, download=True, transform=mnist_val_transform)
+        testset = torchvision.datasets.FashionMNIST(root='../../data', train=False, download=True, transform=mnist_transform)
+        
+        return fullset, valset, testset, num_cls
+
     
     elif dset_name == "cifar10":
         cifar_transform = transforms.Compose([
@@ -762,9 +802,9 @@ def load_mnist_cifar (datadir, dset_name,feature):
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
         num_cls = 10
-        fullset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=cifar_transform)
-        valset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=cifar_val_transform)
-        testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=True, transform=cifar_transform)
+        fullset = torchvision.datasets.CIFAR10(root='../../data', train=True, download=True, transform=cifar_transform)
+        valset = torchvision.datasets.CIFAR10(root='../../data', train=True, download=True, transform=cifar_val_transform)
+        testset = torchvision.datasets.CIFAR10(root='../../data', train=False, download=True, transform=cifar_transform)
         if feature == 'classimb':
             samples_per_class = torch.zeros(num_cls)
             for i in range(num_cls):
@@ -789,7 +829,3 @@ def load_mnist_cifar (datadir, dset_name,feature):
                     subset_idxs.extend(batch_subset_idxs)
             fullset = torch.utils.data.Subset(fullset, subset_idxs)
         return fullset, valset, testset, num_cls
-
-
-
-

@@ -38,6 +38,7 @@ class SetFunctionFacLoc(object):
           inputs_i = inputs_i.to(self.device) #, target_i.to(self.device)
           self.N += inputs_i.size()[0]
           g_is.append(inputs_i)
+        
         self.sim_mat = torch.zeros([self.N, self.N],dtype=torch.float32)
 
         first_i = True
