@@ -13,13 +13,16 @@ from matplotlib import pyplot as plt
 from models.set_function_all import SetFunctionFacLoc
 from torch.utils.data.sampler import SubsetRandomSampler
 # from models.simpleNN_net import ThreeLayerNet
-from models.set_function_craig import DeepSetFunction as CRAIG
+from models.set_function_craig import PerClassDeepSetFunction as CRAIG
 from models.set_function_grad_computation_taylor import SetFunctionLoader_2 as SetFunction
 from models.set_function_grad_computation_taylor import WeightedSetFunctionLoader as WtSetFunction
 import math
 from models.mnist_net import MnistNet
-from utils.data_utils import load_dataset_pytorch
+from models.resnet import ResNet18
+#from utils.data_utils import load_dataset_pytorch
+from utils.custom_dataset import load_mnist_cifar
 from torch.utils.data import random_split, SequentialSampler, BatchSampler, RandomSampler
+
 
 def model_eval_loss(data_loader, model, criterion):
     total_loss = 0
@@ -100,62 +103,62 @@ print(exp_name)
 exp_start_time = datetime.datetime.now()
 print("=======================================", file=logfile)
 print(exp_name, str(exp_start_time), file=logfile)
-if data_name == 'mnist':
-    fullset, valset, testset, num_cls = load_dataset_pytorch(datadir, data_name, feature)
-    # Validation Data set is 10% of the Entire Trainset.
-    validation_set_fraction = 0.1
-    num_fulltrn = len(fullset)
-    num_val = int(num_fulltrn * validation_set_fraction)
-    num_trn = num_fulltrn - num_val
-    trainset, validset = random_split(fullset, [num_trn, num_val])
-    trn_batch_size = 20
-    val_batch_size = 1000
-    tst_batch_size = 1000
 
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=trn_batch_size,
-                                              shuffle=False, pin_memory=True)
+fullset, valset, testset, num_cls = load_mnist_cifar(datadir, data_name, feature)
+# Validation Data set is 10% of the Entire Trainset.
+validation_set_fraction = 0.1
+num_fulltrn = len(fullset)
+num_val = int(num_fulltrn * validation_set_fraction)
+num_trn = num_fulltrn - num_val
+trainset, validset = random_split(fullset, [num_trn, num_val])
+trn_batch_size = 20
+val_batch_size = 1000
+tst_batch_size = 1000
 
-    valloader = torch.utils.data.DataLoader(valset, batch_size=val_batch_size, shuffle=False,
-                                                   sampler=SubsetRandomSampler(validset.indices),
-                                                   pin_memory=True)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=trn_batch_size,
+                                          shuffle=False, pin_memory=True)
 
-    testloader = torch.utils.data.DataLoader(testset, batch_size=tst_batch_size,
-                                             shuffle=False, pin_memory=True)
+valloader = torch.utils.data.DataLoader(valset, batch_size=val_batch_size, shuffle=False,
+                                               sampler=SubsetRandomSampler(validset.indices),
+                                               pin_memory=True)
 
-    trainset_idxs = np.array(trainset.indices)
-    batch_wise_indices = [trainset_idxs[x] for x in list(BatchSampler(SequentialSampler(trainset_idxs), 1000, drop_last=False))]
-    cnt = 0
-    for batch_idx in batch_wise_indices:
-        inputs = torch.cat([fullset[x][0].view(1, -1) for x in batch_idx],
-                           dim=0).type(torch.float)
-        targets = torch.tensor([fullset[x][1] for x in batch_idx])
-        if cnt == 0:
-            x_trn = inputs
-            y_trn = targets
-            cnt = cnt + 1
-        else:
-            x_trn = torch.cat([x_trn, inputs], dim=0)
-            y_trn = torch.cat([y_trn, targets], dim=0)
-            cnt = cnt + 1
+testloader = torch.utils.data.DataLoader(testset, batch_size=tst_batch_size,
+                                         shuffle=False, pin_memory=True)
 
-    for batch_idx, (inputs, targets) in enumerate(valloader):
-        if batch_idx == 0:
-            x_val = inputs
-            y_val = targets
-            x_val_new = inputs.view(val_batch_size, -1)
-        else:
-            x_val = torch.cat([x_val, inputs], dim=0)
-            y_val = torch.cat([y_val, targets], dim=0)
-            x_val_new = torch.cat([x_val_new, inputs.view(len(inputs), -1)], dim=0)
-    for batch_idx, (inputs, targets) in enumerate(testloader):
-        if batch_idx == 0:
-            x_tst = inputs
-            y_tst = targets
-            x_tst_new = inputs.view(tst_batch_size, -1)
-        else:
-            x_tst = torch.cat([x_tst, inputs], dim=0)
-            y_tst = torch.cat([y_tst, targets], dim=0)
-            x_tst_new = torch.cat([x_tst_new, inputs.view(len(inputs), -1)], dim=0)
+trainset_idxs = np.array(trainset.indices)
+batch_wise_indices = trainset_idxs[list(BatchSampler(SequentialSampler(trainset_idxs), 1000, drop_last=False))]
+cnt = 0
+for batch_idx in batch_wise_indices:
+    inputs = torch.cat([fullset[x][0].view(1, -1) for x in batch_idx],
+                       dim=0).type(torch.float)
+    targets = torch.tensor([fullset[x][1] for x in batch_idx])
+    if cnt == 0:
+        x_trn = inputs
+        y_trn = targets
+        cnt = cnt + 1
+    else:
+        x_trn = torch.cat([x_trn, inputs], dim=0)
+        y_trn = torch.cat([y_trn, targets], dim=0)
+        cnt = cnt + 1
+
+for batch_idx, (inputs, targets) in enumerate(valloader):
+    if batch_idx == 0:
+        x_val = inputs
+        y_val = targets
+        x_val_new = inputs.view(val_batch_size, -1)
+    else:
+        x_val = torch.cat([x_val, inputs], dim=0)
+        y_val = torch.cat([y_val, targets], dim=0)
+        x_val_new = torch.cat([x_val_new, inputs.view(val_batch_size, -1)], dim=0)
+for batch_idx, (inputs, targets) in enumerate(testloader):
+    if batch_idx == 0:
+        x_tst = inputs
+        y_tst = targets
+        x_tst_new = inputs.view(tst_batch_size, -1)
+    else:
+        x_tst = torch.cat([x_tst, inputs], dim=0)
+        y_tst = torch.cat([y_tst, targets], dim=0)
+        x_tst_new = torch.cat([x_tst_new, inputs.view(tst_batch_size, -1)], dim=0)
 
 write_knndata(datadir, x_trn, y_trn, x_val_new, y_val, x_tst_new, y_tst, data_name)
 print('-----------------------------------------')
@@ -181,13 +184,18 @@ def train_model_craig(start_rand_idxs, bud):
     start.record()
     torch.manual_seed(42)
     np.random.seed(42)
-    model = MnistNet()
+
+    if data_name == 'mnist':
+        model = MnistNet()
+    elif data_name == 'cifar10':
+        model = ResNet18(num_cls)
+
     model = model.to(device)
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
     criterion_nored = nn.CrossEntropyLoss(reduction='none')
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-    setf_model = CRAIG(device, model, trainset, N_trn=N, batch_size=1000, if_convex=False)
+    setf_model = CRAIG(device, x_trn, y_trn, model, N_trn=N, batch_size=1000, if_convex=False)
     print("Starting CRAIG Run")
     substrn_losses = np.zeros(num_epochs)
     fulltrn_losses = np.zeros(num_epochs)
@@ -315,15 +323,22 @@ def random_greedy_train_model_online_taylor(start_rand_idxs, bud, lam):
     start.record()
     torch.manual_seed(42)
     np.random.seed(42)
-    model = MnistNet()
+    if data_name == 'mnist':
+        model = MnistNet()
+    elif data_name == 'cifar10':
+        model = ResNet18(num_cls)
     model = model.to(device)
     idxs = start_rand_idxs
     total_idxs = list(np.arange(len(y_trn)))
     criterion = nn.CrossEntropyLoss()
     criterion_nored = nn.CrossEntropyLoss(reduction='none')
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-    setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
-                             criterion_nored, learning_rate, device, num_cls, 1000)
+    if data_name == 'mnist':
+        setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
+                             criterion_nored, learning_rate, device, 1, num_cls, 1000)
+    elif data_name == 'cifar10':
+        setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
+                                 criterion_nored, learning_rate, device, 3, num_cls, 1000)
     print("Starting Randomized Greedy Online OneStep Run with taylor!")
     substrn_losses = np.zeros(num_epochs)
     fulltrn_losses = np.zeros(num_epochs)
@@ -455,15 +470,22 @@ def train_model_online(start_rand_idxs, bud):
     start.record()
     torch.manual_seed(42)
     np.random.seed(42)
-    model = MnistNet()
+    if data_name == 'mnist':
+        model = MnistNet()
+    elif data_name == 'cifar10':
+        model = ResNet18(num_cls)
     model = model.to(device)
     idxs = start_rand_idxs
 
     criterion = nn.CrossEntropyLoss()
     criterion_nored = nn.CrossEntropyLoss(reduction='none')
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-    setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
-                             criterion_nored, learning_rate, device, num_cls, 1000)
+    if data_name == 'mnist':
+        setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
+                             criterion_nored, learning_rate, device, 1, num_cls, 1000)
+    elif data_name == 'cifar10':
+        setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
+                                 criterion_nored, learning_rate, device, 3, num_cls, 1000)
     print("Starting Greedy Online OneStep Run with taylor!")
     substrn_losses = np.zeros(num_epochs)
     fulltrn_losses = np.zeros(num_epochs)
@@ -594,7 +616,10 @@ def facloc_reg_train_model_online_taylor(start_rand_idxs, facloc_idxs, bud, lam)
     start.record()
     torch.manual_seed(42)
     np.random.seed(42)
-    model = MnistNet()
+    if data_name == 'mnist':
+        model = MnistNet()
+    elif data_name == 'cifar10':
+        model = ResNet18(num_cls)
     val_plus_facloc_idxs = [trainset.indices[x] for x in facloc_idxs]
     val_plus_facloc_idxs.extend(validset.indices)
     cmb_set = torch.utils.data.Subset(fullset, val_plus_facloc_idxs)
@@ -613,8 +638,14 @@ def facloc_reg_train_model_online_taylor(start_rand_idxs, facloc_idxs, bud, lam)
     criterion = nn.CrossEntropyLoss()
     criterion_nored = nn.CrossEntropyLoss(reduction='none')
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-    setf_model = WtSetFunction(trainset, x_cmb, y_cmb, len(facloc_idxs), lam, model, criterion,
-                             criterion_nored, learning_rate, device, num_cls, 1000)
+
+    if data_name == 'mnist':
+        setf_model = WtSetFunction(trainset, x_cmb, y_cmb, len(facloc_idxs), lam, model, criterion,
+                             criterion_nored, learning_rate, device, 1, num_cls, 1000)
+    elif data_name == 'cifar10':
+        setf_model = WtSetFunction(trainset, x_cmb, y_cmb, len(facloc_idxs), lam, model, criterion,
+                                   criterion_nored, learning_rate, device, 3, num_cls, 1000)
+
     print("Starting Facloc regularized Greedy Online OneStep Run with taylor!")
     substrn_losses = np.zeros(num_epochs)
     fulltrn_losses = np.zeros(num_epochs)
@@ -743,14 +774,15 @@ def train_model_mod_online(start_rand_idxs, bud):
     start.record()
     torch.manual_seed(42)
     np.random.seed(42)
-    model = MnistNet()
+    if data_name == 'mnist':
+        model = MnistNet()
+    elif data_name == 'cifar10':
+        model = ResNet18(num_cls)
     model = model.to(device)
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
     criterion_nored = nn.CrossEntropyLoss(reduction='none')
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-    setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
-                             criterion_nored, learning_rate, device, 10, 1000)
     print("Starting Modified Greedy Online OneStep Run with taylor!")
     substrn_losses = np.zeros(num_epochs)
     fulltrn_losses = np.zeros(num_epochs)
@@ -839,7 +871,10 @@ def train_model_random(start_rand_idxs):
     start.record()
     torch.manual_seed(42)
     np.random.seed(42)
-    model = MnistNet()
+    if data_name == 'mnist':
+        model = MnistNet()
+    elif data_name == 'cifar10':
+        model = ResNet18(num_cls)
     model = model.to(device)
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
@@ -958,7 +993,10 @@ def train_model_random_online(start_rand_idxs):
     start.record()
     torch.manual_seed(42)
     np.random.seed(42)
-    model = MnistNet()
+    if data_name == 'mnist':
+        model = MnistNet()
+    elif data_name == 'cifar10':
+        model = ResNet18(num_cls)
     model = model.to(device)
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
@@ -1107,7 +1145,10 @@ def train_model_Facloc(idxs):
     start.record()
     torch.manual_seed(42)
     np.random.seed(42)
-    model = MnistNet()
+    if data_name == 'mnist':
+        model = MnistNet()
+    elif data_name == 'cifar10':
+        model = ResNet18(num_cls)
     model = model.to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
@@ -1458,7 +1499,6 @@ with open(all_logs_dir + '/random_subset_selected.txt', 'w') as log_file:
 facloc_idxs = list(facloc_idxs)
 with open(all_logs_dir + '/facloc_subset_selected.txt', 'w') as log_file:
     print(facloc_idxs, file=log_file)
-
 
 craig_subset_idxs = list(craig_subset_idxs)
 with open(all_logs_dir + '/craig_subset_selected.txt', 'w') as log_file:
