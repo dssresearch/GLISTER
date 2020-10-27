@@ -184,25 +184,24 @@ def train_model_craig(start_rand_idxs, bud):
     start.record()
     torch.manual_seed(42)
     np.random.seed(42)
-
     if data_name == 'mnist':
         model = MnistNet()
     elif data_name == 'cifar10':
         model = ResNet18(num_cls)
-
     model = model.to(device)
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
     criterion_nored = nn.CrossEntropyLoss(reduction='none')
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-    setf_model = CRAIG(device, x_trn, y_trn, model, N_trn=N, batch_size=1000, if_convex=False)
+    #setf_model = CRAIG(device, x_trn, y_trn, model, N_trn=N, batch_size=1000, if_convex=False)
+    setf_model = CRAIG(device, model, trainset, N_trn=N, batch_size=1000, if_convex=False)
     print("Starting CRAIG Run")
     substrn_losses = np.zeros(num_epochs)
     fulltrn_losses = np.zeros(num_epochs)
     val_losses = np.zeros(num_epochs)
     for i in range(0, num_epochs):
         print("selEpoch: %d, Starting Selection:" % i, str(datetime.datetime.now()))
-        if (i%select_every) == 0:
+        if (i % select_every) == 0:
             cached_state_dict = copy.deepcopy(model.state_dict())
             clone_dict = copy.deepcopy(model.state_dict())
             subset_idxs, gammas = setf_model.lazy_greedy_max(int(bud), clone_dict)

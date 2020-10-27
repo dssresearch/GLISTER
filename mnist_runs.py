@@ -13,7 +13,7 @@ for dset in datasets:
         for f in fracs:
             for isOneStepWarm in warm_method:
                 args = ['python3']
-                args.append('grad_computed_onestep_selection.py')
+                args.append('dss_deep.py')
                 #args.append('new_run_onestep_selection_minibatch.py') # selection every few!
                 #args.append('run_knnsubmod_selection_fullbatch.py') # selection using KNNsubmod indices
                 args.append(datadir + dset)

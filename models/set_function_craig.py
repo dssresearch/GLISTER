@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import apricot
 from torch.utils.data import random_split, SequentialSampler, BatchSampler
 import math
-
+from collections import defaultdict
 
 class SetFunction(object):
 
@@ -291,6 +291,98 @@ class DeepSetFunction(object):
 
 
 class PerClassDeepSetFunction(object):
+
+    def __init__(self, device, model, trainset, N_trn, batch_size, if_convex):
+        self.trainset = trainset
+        self.model = model
+        self.if_convex = if_convex
+        self.device = device
+        self.N_trn = N_trn
+        self.batch_size = batch_size
+
+    def distance(self, x, y, exp=2):
+        n = x.size(0)
+        m = y.size(0)
+        d = x.size(1)
+        x = x.unsqueeze(1).expand(n, m, d)
+        y = y.unsqueeze(0).expand(n, m, d)
+        dist = torch.exp(-1 * torch.pow(x - y, 2).sum(2))
+        return dist
+
+    def compute_score(self, model_params):
+        self.model.load_state_dict(model_params)
+        self.N = 0
+        g_is = []
+        batch_wise_indices = np.array(
+            [list(BatchSampler(SequentialSampler(np.arange(self.N_trn)), self.batch_size, drop_last=False))][0])
+        with torch.no_grad():
+            for batch_idx in batch_wise_indices:
+                inputs_i = torch.cat(
+                    [self.trainset[x][0].view(-1, self.trainset[x][0].shape[0], self.trainset[x][0].shape[1],
+                                              self.trainset[x][0].shape[2]) for x
+                     in batch_idx], dim=0).type(torch.float)
+                target_i = torch.tensor([self.trainset[x][1] for x in batch_idx])
+                inputs_i, target_i = inputs_i.to(self.device), target_i.to(self.device)
+                self.N += inputs_i.size()[0]
+                if not self.if_convex:
+                    scores_i = F.softmax(self.model(inputs_i), dim=1)
+                    y_i = torch.zeros(target_i.size(0), scores_i.size(1)).to(self.device)
+                    y_i[range(y_i.shape[0]), target_i] = 1
+                    g_is.append(scores_i - y_i)
+                else:
+                    g_is.append(inputs_i)
+
+            self.dist_mat = torch.zeros([self.N, self.N], dtype=torch.float32)
+            first_i = True
+            for i, g_i in enumerate(g_is, 0):
+                if first_i:
+                    size_b = g_i.size(0)
+                    first_i = False
+                for j, g_j in enumerate(g_is, 0):
+                    self.dist_mat[i * size_b: i * size_b + g_i.size(0),
+                    j * size_b: j * size_b + g_j.size(0)] = self.distance(g_i, g_j).cpu()
+        self.dist_mat = self.dist_mat.cpu().numpy()
+
+    def compute_gamma(self, idxs):
+        gamma = [0 for i in range(len(idxs))]
+        best = self.dist_mat[idxs]  # .to(self.device)
+        rep = np.argmax(best, axis=0)
+        for i in rep:
+            gamma[i] += 1
+        return gamma
+
+    def get_similarity_kernel(self):
+        targets = np.array([self.trainset[x][1] for x in range(self.N_trn)])
+        kernel = np.zeros((targets.shape[0], targets.shape[0]))
+        for target in np.unique(targets):
+            x = np.where(targets == target)[0]
+            # prod = np.transpose([np.tile(x, len(x)), np.repeat(x, len(x))])
+            for i in x:
+                kernel[i, x] = 1
+        return kernel
+
+    def lazy_greedy_max(self, budget, model_params):
+        class_dict = defaultdict(list)
+        for i in range(len(self.trainset)):
+            _, y = self.trainset[i]
+            if y in class_dict.keys():
+                class_dict[y] = class_dict[y].extend(i)
+            else:
+                class_dict[y] = [i]
+
+        for i in class_dict.keys():
+            self.compute_score(model_params)
+            kernel = self.get_similarity_kernel()
+            fl = apricot.functions.facilityLocation.FacilityLocationSelection(random_state=0, metric='precomputed',
+                                                                              n_samples=budget)
+            self.dist_mat = self.dist_mat * kernel
+            sim_sub = fl.fit_transform(self.dist_mat)
+            greedyList = list(np.argmax(sim_sub, axis=1))
+            gamma = self.compute_gamma(greedyList)
+        return greedyList, gamma
+
+
+class PerClassNonDeepSetFunction(object):
     def __init__(self, device, x_trn, y_trn, model, N_trn, batch_size, if_convex):
         self.x_trn = x_trn
         self.y_trn = y_trn

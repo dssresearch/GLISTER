@@ -9,9 +9,9 @@ import torch.optim as optim
 from matplotlib import pyplot as plt
 from models.simpleNN_net import *  # ThreeLayerNet
 from torch.utils.data import random_split, SequentialSampler, BatchSampler, RandomSampler
-from models.set_function_all import SetFunctionFacLoc,SetFunctionBatch  # as SetFunction #SetFunctionCompare
+from models.set_function_all import SetFunctionFacLoc, SetFunctionBatch  # as SetFunction #SetFunctionCompare
 from models.set_function_grad_computation_taylor import NonDeepSetFunctionLoader_2 as SetFunctionTaylor
-from models.set_function_craig import PerClassDeepSetFunction as CRAIG
+from models.set_function_craig import PerClassNonDeepSetFunction as CRAIG
 from models.set_function_ideas import SetFunctionTaylorDeep_ReLoss_Mean
 from sklearn.model_selection import train_test_split
 from utils.custom_dataset import load_dataset_numpy, write_knndata

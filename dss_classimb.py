@@ -124,7 +124,7 @@ def perform_knnsb_selection(datadir, dset_name, budget, selUsing):
     else:
         val_filepath = trn_filepath
 
-    subprocess.call(["mkdir","-p", output_dir])
+    subprocess.call(["mkdir", "-p", output_dir])
     knnsb_args = []
     knnsb_args.append('./build/KNNSubmod')
     knnsb_args.append(trn_filepath)
@@ -408,8 +408,8 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
     classes,count = torch.unique(val_predict,return_counts=True)
     print(count)
 
-    val_pre = precision_score(y_val.cpu(), val_predict.cpu())
-    val_recall = recall_score(y_val.cpu(), val_predict.cpu())
+    #val_pre = precision_score(y_val.cpu(), val_predict.cpu())
+    #val_recall = recall_score(y_val.cpu(), val_predict.cpu())
 
     correct = 0
     total = 0
@@ -422,18 +422,13 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
         correct += predicted.eq(targets).sum().item()
     tst_acc = 100.0 * correct / total
 
-    classes,count = torch.unique(predicted,return_counts=True)
+    classes, count = torch.unique(predicted,return_counts=True)
     print(count)
-
-    tst_pre = precision_score(y_tst.cpu(), predicted.cpu())
-    tst_recall = recall_score(y_tst.cpu(), predicted.cpu())
-
     print("SelectionRun---------------------------------")
     print("Final SubsetTrn and FullTrn Loss:", full_trn_loss.item(), sub_trn_loss.item())
     print("Validation Loss and Accuracy:", val_loss.item(), val_acc)
-    print("Validation precision and recall of label 1:", val_pre, val_recall)
+    #print("Validation precision and recall of label 1:", val_pre, val_recall)
     print("Test Data Loss and Accuracy:", test_loss.item(), tst_acc)
-    print("Test precision and recall of label 1:", tst_pre, tst_recall)
     print('-----------------------------------')
     return val_acc, tst_acc, val_loss.item(), test_loss.item(), substrn_losses, fulltrn_losses, val_losses, idxs, substrn_grads
 

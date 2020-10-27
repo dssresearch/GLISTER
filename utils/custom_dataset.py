@@ -207,7 +207,7 @@ def write_knndata(datadir, dset_name,feature):
         return
 
     if dset_name in ['mnist', "fashion-mnist"] :
-        fullset, valset, testset, num_cls = load_mnist_cifar(datadir, data_name, feature=feature)
+        fullset, valset, testset, num_cls = load_mnist_cifar(datadir, dset_name, feature=feature)
 
         x_trn, y_trn = fullset.data, fullset.targets
         x_tst, y_tst = testset.data, testset.targets
@@ -217,7 +217,7 @@ def write_knndata(datadir, dset_name,feature):
         x_trn, x_val, y_trn, y_val = train_test_split(x_trn, y_trn, test_size=0.1, random_state=42)
 
     else:
-        fullset, valset, testset, data_dims, num_cls = load_dataset_custom(datadir, data_name,feature=feature, isnumpy=True)
+        fullset, valset, testset, data_dims, num_cls = load_dataset_custom(datadir, dset_name, feature=feature, isnumpy=True)
     
         x_trn, y_trn = fullset
         x_val , y_val = valset

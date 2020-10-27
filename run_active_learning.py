@@ -1,20 +1,19 @@
 import subprocess
 
-datadir = sys.argv[1]
-data_name = sys.argv[2]
-
+#datadir = sys.argv[1]
+#data_name = sys.argv[2]
+datadir = "C:\\Users\\krish\\OneDrive - The University of Texas at Dallas\\Documents\\GitHub\\GLISTER\\data\\"
 fracs = [0.1, 0.2, 0.3, 0.4, 0.5]
 num_epochs = 200
 no_of_rounds = [10]  #
-
-feature = ['dss','classimb']
+datasets = ['dna']
+feature = ['dss', 'classimb']
 
 for dset in datasets:
     for sel in no_of_rounds:
         for f in fracs:
             for feat in feature:
-                for isOneStepWarm in warm_method:
-                    args = ['python3']
+                    args = ['python']
                     args.append('active_learning.py')
                     args.append(datadir + dset)
                     args.append(dset)
