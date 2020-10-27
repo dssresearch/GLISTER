@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 from models.simpleNN_net import * #ThreeLayerNet
 from models.logistic_regression import LogisticRegNet
-from models.set_function_act_learn import SetFunctionFacLoc,SetFunctionTaylorLastLinear as SetFunctionTaylor, SetFunctionBatch
+from models.set_function_act_learn import SetFunctionFacLoc,SetFunctionTaylor, SetFunctionBatch
 from sklearn.model_selection import train_test_split
 #from utils.custom_dataset import CustomDataset_act, load_dataset_numpy, write_knndata
 #from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
