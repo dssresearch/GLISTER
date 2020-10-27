@@ -255,8 +255,7 @@ def create_noisy(y_trn,num_cls):
 
     return y_trn
     
-def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
-    
+def load_dataset_custom (datadir, dset_name, feature, isnumpy=True):
     if dset_name == "dna":
         np.random.seed(42)
         trn_file = os.path.join(datadir, 'dna.scale.trn')
@@ -529,10 +528,10 @@ def load_dataset_custom (datadir, dset_name,feature,isnumpy=True):
         x_tst = sc.transform(x_tst)
 
         if feature == 'classimb':
-            x_trn, y_trn,x_val, y_val,x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
+            x_trn, y_trn, x_val, y_val, x_tst, y_tst = create_imbalance(x_trn, y_trn,x_val, y_val,x_tst, y_tst,num_cls)
 
         elif feature == 'noise':
-            y_trn = create_noisy(y_trn,num_cls)
+            y_trn = create_noisy(y_trn, num_cls)
 
         if isnumpy:
             fullset = (x_trn, y_trn)

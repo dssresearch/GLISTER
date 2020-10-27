@@ -8,7 +8,8 @@ num_epochs = 200
 select_every = [20]#,35,50]
 warm_method = [0]   # 0 = online, 1 = onestep warmstart
 num_runs = 10
-feature = ['dss','noise','classimb']
+feature = ['dss', 'noise', 'classimb']
+datasets = []
 
 for dset in datasets:
     for sel in select_every:

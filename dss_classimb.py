@@ -17,7 +17,7 @@ from models.set_function_all import SetFunctionFacLoc, SetFunctionTaylor, SetFun
 from models.set_function_craig import SetFunction2 as CRAIG
 from models.set_function_ideas import SetFunctionTaylorDeep_ReLoss_Mean
 from sklearn.model_selection import train_test_split
-from utils.custom_dataset import load_dataset_custom
+from utils.custom_dataset import load_dataset_custom, load_mnist_cifar
 import math
 import random
 from torch.utils.data import TensorDataset, DataLoader
@@ -55,7 +55,7 @@ print(exp_name, str(exp_start_time), file=logfile)
 
 if data_name == 'mnist':
 
-    fullset, valset, testset, num_cls = load_mnist_cifar (datadir, data_name,feature=feature)
+    fullset, valset, testset, num_cls = load_mnist_cifar(datadir, data_name, feature=feature)
 
     x_trn, y_trn = fullset.data, fullset.targets
     x_tst, y_tst = testset.data, testset.targets
@@ -65,7 +65,7 @@ if data_name == 'mnist':
     x_trn, x_val, y_trn, y_val = train_test_split(x_trn, y_trn, test_size=0.1, random_state=42)
 else:
 
-    fullset, valset, testset, data_dims,num_cls = load_dataset_custom(datadir, data_name,feature=feature,True)
+    fullset, valset, testset, data_dims,num_cls = load_dataset_custom(datadir, data_name,feature=feature, isnumpy=True)
     
     x_trn, y_trn = torch.from_numpy(fullset[0]).float(), torch.from_numpy(fullset[1]).long()
     x_tst, y_tst = torch.from_numpy(testset[0]).float(), torch.from_numpy(testset[1]).long()
