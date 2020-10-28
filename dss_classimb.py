@@ -12,16 +12,13 @@ import torch.optim as optim
 from matplotlib import pyplot as plt
 from models.simpleNN_net import *  # ThreeLayerNet
 from models.logistic_regression import LogisticRegNet
-from models.set_function_all import SetFunctionFacLoc, SetFunctionTaylor, SetFunctionTaylorDeep, \
-    SetFunctionBatch  # as SetFunction #SetFunctionCompare
+from models.set_function_all import SetFunctionFacLoc, SetFunctionTaylor, SetFunctionBatch  # as SetFunction #SetFunctionCompare
 from models.set_function_craig import SetFunction2 as CRAIG
-from models.set_function_ideas import SetFunctionTaylorDeep_ReLoss_Mean
 from sklearn.model_selection import train_test_split
 from utils.custom_dataset import load_dataset_custom, load_mnist_cifar, write_knndata
 import math
 import random
 from torch.utils.data import TensorDataset, DataLoader
-from sklearn.metrics import precision_score, recall_score
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # #device = "cpu"
@@ -251,15 +248,8 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
 
     model = model.to(device)
 
-    if func_name == 'Stepwise':
-        step_bud = math.ceil(bud * select_every / num_epochs)
-        remainList = set(list(range(N)))
-
-        idxs = list(np.random.choice(N, size=step_bud, replace=False))
-        remainList = remainList.difference(idxs)
-
-    else:
-        idxs = start_rand_idxs
+    
+    idxs = start_rand_idxs
 
     if func_name == 'Facloc Regularized':
         x_val1 = torch.cat([x_val, x_trn[fac_loc_idx]], dim=0)
@@ -274,11 +264,6 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
     if func_name == 'Full OneStep':
         setf_model = SetFunctionBatch(x_trn, y_trn, x_val, y_val, valid, model,
                                       criterion, criterion_nored, learning_rate, device)
-
-    elif func_name == "Taylor on Logit":
-        setf_model = SetFunctionTaylorDeep_ReLoss_Mean(x_trn, y_trn, train_batch_size_for_greedy, x_val, y_val, valid,
-                                                       model,
-                                                       criterion, criterion_nored, learning_rate, device, N)
 
     elif func_name == 'Facility Location':
         setf_model = SetFunctionFacLoc(device, train_loader_greedy)
@@ -296,10 +281,6 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
         print("Starting Online OneStep Run with taylor on loss!")
     elif func_name == 'Full OneStep':
         print("Starting Online OneStep Run without taylor!")
-    elif func_name == 'Taylor on Logit':
-        print("Starting Online OneStep Run with taylor on logit!")
-    elif func_name == 'Stepwise':
-        print("Starting Online Stepwise OneStep Run with taylor!")
     elif func_name == 'Facloc Regularized':
         print("Starting Facility Location Regularized Online OneStep Run with taylor!")
     elif func_name == 'Random Greedy':
@@ -312,10 +293,6 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
         print("Starting Supervised Facility Location!")
     elif func_name == 'Random':
         print("Starting Random Run!")
-    elif func_name == 'Random Perturbation':
-        print("Starting Online OneStep Run with taylor with random perturbation!")
-    elif func_name == 'Proximal':
-        print("Starting Online Proximal OneStep Run with taylor!")
     elif func_name == 'Random with Prior':
         print("Starting Random with Prior Run with taylor!")
     substrn_losses = np.zeros(num_epochs)
@@ -358,12 +335,8 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
             cached_state_dict = copy.deepcopy(model.state_dict())
             clone_dict = copy.deepcopy(model.state_dict())
             t_ng_start = time.time()
-            if func_name == 'Stepwise':
-                new_idxs = setf_model.naive_greedy_max(step_bud, clone_dict, list(remainList))  # , grads_idxs
-                remainList = remainList.difference(new_idxs)
-                idxs.extend(new_idxs)
 
-            elif func_name == 'Random Greedy':
+            if func_name == 'Random Greedy':
                 new_idxs = setf_model.naive_greedy_max(int(0.9 * bud), clone_dict)
                 rem_idxs = list(set(total_idxs).difference(set(new_idxs)))
                 new_idxs.extend(list(np.random.choice(rem_idxs, size=int(0.1 * bud), replace=False)))
@@ -374,16 +347,6 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
                 np.random.seed(i)
                 idxs = np.random.choice(N, size=bud, replace=False)
                 np.random.set_state(state)
-
-            elif func_name == 'Random Perturbation':
-                new_idxs = setf_model.naive_greedy_max(bud, clone_dict, None, None, True)
-                idxs = new_idxs
-
-            elif func_name == 'Proximal':
-                previous = torch.zeros(N, device=device)
-                previous[idxs] = 1.0
-                new_idxs = setf_model.naive_greedy_max(bud, clone_dict, None, previous)
-                idxs = new_idxs
 
             else:
                 new_idxs = setf_model.naive_greedy_max(bud, clone_dict)  # , grads_idxs
@@ -405,11 +368,8 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
         val_total = y_val.size(0)
     val_acc = 100 * val_correct / val_total
 
-    classes,count = torch.unique(val_predict,return_counts=True)
-    print(count)
-
-    #val_pre = precision_score(y_val.cpu(), val_predict.cpu())
-    #val_recall = recall_score(y_val.cpu(), val_predict.cpu())
+    #classes,count = torch.unique(val_predict,return_counts=True)
+    #print(count)
 
     correct = 0
     total = 0
@@ -422,145 +382,14 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
         correct += predicted.eq(targets).sum().item()
     tst_acc = 100.0 * correct / total
 
-    classes, count = torch.unique(predicted,return_counts=True)
-    print(count)
+    #classes, count = torch.unique(predicted,return_counts=True)
+    #print(count)
     print("SelectionRun---------------------------------")
     print("Final SubsetTrn and FullTrn Loss:", full_trn_loss.item(), sub_trn_loss.item())
     print("Validation Loss and Accuracy:", val_loss.item(), val_acc)
-    #print("Validation precision and recall of label 1:", val_pre, val_recall)
     print("Test Data Loss and Accuracy:", test_loss.item(), tst_acc)
     print('-----------------------------------')
     return val_acc, tst_acc, val_loss.item(), test_loss.item(), substrn_losses, fulltrn_losses, val_losses, idxs, substrn_grads
-
-
-def train_model_online_taylor_deep(start_rand_idxs, bud, valid):
-    torch.manual_seed(42)
-    np.random.seed(42)
-    # model = ThreeLayerNet(M, num_cls, 5, 5)
-    # model = LogisticRegNet(M, num_cls)
-    model = TwoLayerNet(M, num_cls, 100)
-    # if data_name == 'mnist':
-    #     model = MnistNet()
-    if torch.cuda.device_count() > 1:
-        print("Using:", torch.cuda.device_count(), "GPUs!")
-        model = nn.DataParallel(model)
-        cudnn.benchmark = True
-
-    model = model.to(device)
-    idxs = start_rand_idxs
-
-    criterion = nn.CrossEntropyLoss()
-    criterion_nored = nn.CrossEntropyLoss(reduction='none')
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-
-    setf_model = SetFunctionTaylorDeep(train_loader_greedy, valid_loader, valid, model,
-                                       criterion, criterion_nored, learning_rate, device, N)
-
-    print("Starting Online OneStep Run with taylor on loss with batches!")
-    substrn_losses = np.zeros(num_epochs)
-    fulltrn_losses = np.zeros(num_epochs)
-    val_losses = np.zeros(num_epochs)
-    # idxs = start_rand_idxs
-
-    train_sub_loader = []
-    x_trn_sub = x_trn[idxs]
-    y_trn_sub = y_trn[idxs]
-    for item in range(math.ceil(len(x_trn_sub) / train_batch_size)):
-        inputs = x_trn_sub[item * train_batch_size:(item + 1) * train_batch_size]
-        target = y_trn_sub[item * train_batch_size:(item + 1) * train_batch_size]
-        train_sub_loader.append((inputs, target))
-
-    for i in range(num_epochs):
-        # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
-        total_subset_loss = 0
-        for idx, data in enumerate(train_sub_loader, 0):
-            inputs, target = data
-            # inputs, target = inputs.to(device), target.to(device)
-            optimizer.zero_grad()
-            scores = model(inputs)
-            loss = criterion(scores, target)
-            total_subset_loss += loss.item()
-            loss.backward()
-            optimizer.step()
-
-        substrn_losses[i] = (1.0 * total_subset_loss) / (idx + 1)
-
-        with torch.no_grad():
-            total_train_loss = 0
-            for idx, train_data in enumerate(train_loader, 0):
-                inputs, target = train_data
-                # inputs, target = inputs.to(device), target.to(device)
-                scores = model(inputs)
-                tr_loss = criterion(scores, target)
-                total_train_loss += tr_loss.item()
-
-            full_trn_loss = (1.0 * total_train_loss) / (idx + 1)
-
-            total_valid_loss = 0
-            for idx, val_data in enumerate(valid_loader, 0):
-                inputs, target = val_data
-                # inputs, target = inputs.to(device), target.to(device)
-                scores = model(inputs)
-                val_loss = criterion(scores, target)
-                total_valid_loss += val_loss.item()
-
-            val_loss = (1.0 * total_valid_loss) / (idx + 1)
-
-        fulltrn_losses[i] = full_trn_loss
-        val_losses[i] = val_loss
-
-        if i % print_every == 0:  # Print Training and Validation Loss
-            print('Epoch:', i, 'SubsetTrn,FullTrn,ValLoss:', substrn_losses[i], full_trn_loss, val_loss)
-
-        if ((i + 1) % select_every == 0):
-            # val_in, val_t = x_val.to(device), y_val.to(device)  # Transfer them to device
-            cached_state_dict = copy.deepcopy(model.state_dict())
-            clone_dict = copy.deepcopy(model.state_dict())
-            t_ng_start = time.time()
-            new_idxs = setf_model.naive_greedy_max(bud, clone_dict)  # , grads_idxs
-            idxs = new_idxs  # update the current set
-            random.shuffle(idxs)
-            model.load_state_dict(cached_state_dict)
-            train_sub_loader = []
-            x_trn_sub = x_trn[idxs]
-            y_trn_sub = y_trn[idxs]
-            for item in range(math.ceil(len(x_trn_sub) / train_batch_size)):
-                inputs = x_trn_sub[item * train_batch_size:(item + 1) * train_batch_size]
-                target = y_trn_sub[item * train_batch_size:(item + 1) * train_batch_size]
-                train_sub_loader.append((inputs, target))
-
-    # Calculate Final SubsetTrn, FullTrn, Val and Test Loss
-    # Calculate Val and Test Accuracy
-    model.eval()
-    with torch.no_grad():
-        full_trn_out = model(x_trn)
-        full_trn_loss = criterion(full_trn_out, y_trn).mean()
-        sub_trn_out = model(x_trn[idxs])
-        sub_trn_loss = criterion(sub_trn_out, y_trn[idxs]).mean()
-        val_out = model(x_val)
-        val_loss = criterion(val_out, y_val)
-        _, val_predict = val_out.max(1)
-        val_correct = val_predict.eq(y_val).sum().item()
-        val_total = y_val.size(0)
-    val_acc = 100 * val_correct / val_total
-
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        inputs, targets = x_tst.to(device), y_tst.to(device)
-        outputs = model(inputs)
-        test_loss = criterion(outputs, targets)
-        _, predicted = outputs.max(1)
-        total += targets.size(0)
-        correct += predicted.eq(targets).sum().item()
-    tst_acc = 100.0 * correct / total
-
-    print("SelectionRun---------------------------------")
-    print("Final SubsetTrn and FullTrn Loss:", full_trn_loss.item(), sub_trn_loss.item())
-    print("Validation Loss and Accuracy:", val_loss.item(), val_acc)
-    print("Test Data Loss and Accuracy:", test_loss.item(), tst_acc)
-    print('-----------------------------------')
-    return val_acc, tst_acc, val_loss.item(), test_loss.item(), substrn_losses, fulltrn_losses, val_losses, idxs
 
 
 def train_model_mod_taylor(start_rand_idxs, bud, valid):
