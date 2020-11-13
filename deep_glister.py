@@ -701,12 +701,12 @@ closed_fval_substrn_losses, closed_fval_fulltrn_losses, closed_subset_idxs, clos
 print("Closed Form Glister run time: ", closed_step_time)
 closed_subset_idxs = [trainset.indices[x] for x in closed_subset_idxs]
 
-one_val_valacc, one_val_tstacc, one_val_subtrn_acc, one_val_full_trn_acc, one_val_valloss, \
-one_val_tstloss,  one_val_subtrnloss, one_val_full_trn_loss, one_fval_val_losses, \
-one_fval_substrn_losses, one_fval_fulltrn_losses, one_subset_idxs, one_step_time= \
-    train_model_glister(start_idxs, bud)
-print("One step run time: ", one_step_time)
-one_subset_idxs = [trainset.indices[x] for x in one_subset_idxs]
+#one_val_valacc, one_val_tstacc, one_val_subtrn_acc, one_val_full_trn_acc, one_val_valloss, \
+#one_val_tstloss,  one_val_subtrnloss, one_val_full_trn_loss, one_fval_val_losses, \
+#one_fval_substrn_losses, one_fval_fulltrn_losses, one_subset_idxs, one_step_time= \
+#    train_model_glister(start_idxs, bud)
+#print("One step run time: ", one_step_time)
+#one_subset_idxs = [trainset.indices[x] for x in one_subset_idxs]
 
 """
 # Modified OneStep Runs
@@ -724,7 +724,7 @@ print("Online Random Run Time: ", ol_random_run_time)
 plot_start_epoch = 0
 ###### Subset Trn loss with val = VAL #############
 plt.figure()
-plt.plot(np.arange(plot_start_epoch, num_epochs), one_fval_substrn_losses[plot_start_epoch:], 'b-', label='tay_v=val')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), one_fval_substrn_losses[plot_start_epoch:], 'b-', label='tay_v=val')
 plt.plot(np.arange(plot_start_epoch, num_epochs), closed_fval_substrn_losses[plot_start_epoch:], 'g+', label='closed form taylor')
 plt.legend()
 plt.xlabel('Epochs')
@@ -737,7 +737,7 @@ plt.clf()
 ########################################################################
 ###### Full Trn loss with val = VAL #############
 plt.figure()
-plt.plot(np.arange(plot_start_epoch, num_epochs), one_fval_fulltrn_losses[plot_start_epoch:], 'b-', label='tay_v=val')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), one_fval_fulltrn_losses[plot_start_epoch:], 'b-', label='tay_v=val')
 plt.plot(np.arange(plot_start_epoch, num_epochs), closed_fval_fulltrn_losses[plot_start_epoch:], 'g+', label='closed form taylor')
 plt.legend()
 plt.xlabel('Epochs')
@@ -750,7 +750,7 @@ plt.clf()
 ########################################################################
 ###### Validation loss with val = VAL #############
 plt.figure()
-plt.plot(np.arange(plot_start_epoch, num_epochs), one_fval_val_losses[plot_start_epoch:], 'b-', label='tay_v=val')
+#plt.plot(np.arange(plot_start_epoch, num_epochs), one_fval_val_losses[plot_start_epoch:], 'b-', label='tay_v=val')
 plt.plot(np.arange(plot_start_epoch, num_epochs), closed_fval_val_losses[plot_start_epoch:], 'g+', label='closed form taylor')
 plt.legend()
 plt.xlabel('Epochs')
@@ -764,20 +764,20 @@ print(data_name, ":Budget = ", fraction, file=logfile)
 print('---------------------------------------------------------------------', file=logfile)
 print('|Algo                            | Val Acc       |   Test Acc       |', file=logfile)
 print('| -------------------------------|:-------------:| ----------------:|', file=logfile)
-print('*| Taylor with Validation=VAL     |', one_val_valacc, '  | ', one_val_tstacc, ' |', file=logfile)
+#print('*| Taylor with Validation=VAL     |', one_val_valacc, '  | ', one_val_tstacc, ' |', file=logfile)
 print('*| Closed form Taylor               |', closed_val_valacc, '  | ', closed_val_tstacc, ' |', file=logfile)
 
 print('---------------------------------------------------', file=logfile)
 print('|Algo                            | Run Time       |', file=logfile)
 print('| -------------------------------|:-------------:|', file=logfile)
-print('*| Taylor with Validation=VAL     |', one_step_time, '  | ', file=logfile)
+#print('*| Taylor with Validation=VAL     |', one_step_time, '  | ', file=logfile)
 print('*| Closed form Taylor               |', closed_step_time, '  | ',file=logfile)
 print("\n", file=logfile)
 
-print("=========Online Selection Taylor with Validation Set===================", file=logfile)
-print("*Taylor v=VAL Validation LOSS:", one_val_valloss, file=logfile)
-print("*Taylor v=VAL Test Data LOSS:", one_val_tstloss, file=logfile)
-print("*Taylor v=VAL Full Trn Data LOSS:", one_fval_fulltrn_losses[-1], file=logfile)
+#print("=========Online Selection Taylor with Validation Set===================", file=logfile)
+#print("*Taylor v=VAL Validation LOSS:", one_val_valloss, file=logfile)
+#print("*Taylor v=VAL Test Data LOSS:", one_val_tstloss, file=logfile)
+#print("*Taylor v=VAL Full Trn Data LOSS:", one_fval_fulltrn_losses[-1], file=logfile)
 
 print("=========Closed Form Taylor with Validation Set===================", file=logfile)
 print("*Taylor v=VAL Validation LOSS:", closed_val_valloss, file=logfile)
@@ -788,9 +788,9 @@ print("=========================================================================
 print("---------------------------------------------------------------------------------------------", file=logfile)
 print("\n", file=logfile)
 
-subset_idxs = list(one_subset_idxs)
-with open(all_logs_dir + '/one_step_subset_selected.txt', 'w') as log_file:
-    print(subset_idxs, file=log_file)
+#subset_idxs = list(one_subset_idxs)
+#with open(all_logs_dir + '/one_step_subset_selected.txt', 'w') as log_file:
+#    print(subset_idxs, file=log_file)
 
 subset_idxs = list(closed_subset_idxs)
 with open(all_logs_dir + '/closed_form_subset_selected.txt', 'w') as log_file:
