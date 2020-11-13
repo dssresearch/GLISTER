@@ -764,7 +764,7 @@ def load_mnist_cifar (datadir, dset_name,feature):
             torchvision.transforms.Normalize((0.1307,), (0.3081,))
         ])
         num_cls = 10
-        fullset = torchvision.datasets.MNIST(root='../../data', train=True, download=True, transform=mnist_transform)
+        fullset = torchvision.datasets.MNIST(root='../data', train=True, download=True, transform=mnist_transform)
         
         if feature=='classimb':
             samples_per_class = torch.zeros(num_cls)
@@ -786,8 +786,8 @@ def load_mnist_cifar (datadir, dset_name,feature):
                     subset_idxs.extend(batch_subset_idxs)
             fullset = torch.utils.data.Subset(fullset, subset_idxs)
         
-        valset = torchvision.datasets.MNIST(root='../../data', train=True, download=True, transform=mnist_val_transform)
-        testset = torchvision.datasets.MNIST(root='../../data', train=False, download=True, transform=mnist_transform)
+        valset = torchvision.datasets.MNIST(root='../data', train=True, download=True, transform=mnist_val_transform)
+        testset = torchvision.datasets.MNIST(root='../data', train=False, download=True, transform=mnist_transform)
         
         return fullset, valset, testset, num_cls
 
@@ -803,7 +803,7 @@ def load_mnist_cifar (datadir, dset_name,feature):
             torchvision.transforms.Normalize((0.1307,), (0.3081,))
         ])
         num_cls = 10
-        fullset = torchvision.datasets.FashionMNIST(root='../../data', train=True, download=True, transform=mnist_transform)
+        fullset = torchvision.datasets.FashionMNIST(root='../data', train=True, download=True, transform=mnist_transform)
         
         if feature=='classimb':
             samples_per_class = torch.zeros(num_cls)
@@ -825,8 +825,8 @@ def load_mnist_cifar (datadir, dset_name,feature):
                     subset_idxs.extend(batch_subset_idxs)
             fullset = torch.utils.data.Subset(fullset, subset_idxs)
         
-        valset = torchvision.datasets.FashionMNIST(root='../../data', train=True, download=True, transform=mnist_val_transform)
-        testset = torchvision.datasets.FashionMNIST(root='../../data', train=False, download=True, transform=mnist_transform)
+        valset = torchvision.datasets.FashionMNIST(root='../data', train=True, download=True, transform=mnist_val_transform)
+        testset = torchvision.datasets.FashionMNIST(root='../data', train=False, download=True, transform=mnist_transform)
         
         return fullset, valset, testset, num_cls
 
@@ -841,9 +841,9 @@ def load_mnist_cifar (datadir, dset_name,feature):
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
         num_cls = 10
-        fullset = torchvision.datasets.CIFAR10(root='../../data', train=True, download=True, transform=cifar_transform)
-        valset = torchvision.datasets.CIFAR10(root='../../data', train=True, download=True, transform=cifar_val_transform)
-        testset = torchvision.datasets.CIFAR10(root='../../data', train=False, download=True, transform=cifar_transform)
+        fullset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=cifar_transform)
+        valset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=cifar_val_transform)
+        testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=True, transform=cifar_transform)
         if feature == 'classimb':
             samples_per_class = torch.zeros(num_cls)
             for i in range(num_cls):
