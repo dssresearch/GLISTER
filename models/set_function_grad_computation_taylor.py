@@ -196,17 +196,18 @@ class GlisterSetFunction_Closed(object):
         self.model.zero_grad()
         if first_init:
             with torch.no_grad():
-                self.init_val_scores = F.softmax(self.model(self.x_val), dim=1)
+                self.init_val_scores = self.model(self.x_val)
+                scores = F.softmax(self.init_val_scores, dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
-                grads = self.init_val_scores - one_hot_label
+                grads = scores - one_hot_label
         # populate the gradients in model params based on loss.
         elif grads_currX is not None:
             # update params:
             with torch.no_grad():
                 #params = [param for param in self.model.parameters()]
                 #params[-1].data.sub_(self.eta * grads_currX)
-                scores = self.init_val_scores - (self.eta * grads_currX).view(1, -1)
+                scores = F.softmax(self.init_val_scores - (self.eta * grads_currX).view(1, -1), dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 grads = scores - one_hot_label
