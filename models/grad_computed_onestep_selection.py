@@ -15,7 +15,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 # from models.simpleNN_net import ThreeLayerNet
 #from models.set_function_craig import DeepSetFunction as CRAIG
 from models.set_function_craig import SetFunctionCRAIG_Super_MNIST as CRAIG
-from models.set_function_grad_computation_taylor import SetFunctionLoader_2 as SetFunction
+from models.set_function_grad_computation_taylor import GlisterSetFunction as SetFunction
 from models.set_function_grad_computation_taylor import WeightedSetFunctionLoader as WtSetFunction
 import math
 from models.mnist_net import MnistNet
