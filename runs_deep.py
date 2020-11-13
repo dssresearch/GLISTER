@@ -6,7 +6,7 @@ import sys
 datadir = '../data/'
 fracs =[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 num_epochs = 200
-select_every = [1]#,35,50]
+select_every = [20]#,35,50]
 warm_method = [0]   # 0 = online, 1 = onestep warmstart
 num_runs = 10
 feature = ['dss', 'noise', 'classimb']
