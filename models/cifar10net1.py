@@ -13,7 +13,7 @@ class CifarNet(nn.Module):
         self.fc2 = nn.Linear(128, 256)
         self.fc3 = nn.Linear(256, 10)
 
-    def forward(self, x):
+    def forward(self, x, last=False):
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
         x = self.pool(F.relu(self.conv3(x)))

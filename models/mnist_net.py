@@ -13,7 +13,7 @@ class MnistNet(nn.Module):
         self.fc1 = nn.Linear(9216, 128)
         self.fc2 = nn.Linear(128, 10)
 
-    def forward(self, x):
+    def forward(self, x, last=False):
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)
@@ -25,4 +25,7 @@ class MnistNet(nn.Module):
         x = F.relu(x)
         x = self.dropout2(x)
         output = self.fc2(x)
-        return output
+        if last:
+            return output, x
+        else:
+            return output
