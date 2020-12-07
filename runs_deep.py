@@ -10,7 +10,7 @@ select_every = [20]#,35,50]
 warm_method = [0]   # 0 = online, 1 = onestep warmstart
 num_runs = 10
 feature = ['dss', 'noise', 'classimb']
-datasets = ['mnist', 'cifar10']
+datasets = ['cifar10']
 
 for dset in datasets:
     for sel in select_every:
@@ -29,7 +29,3 @@ for dset in datasets:
                     args.append(str(num_runs))
                     print(args)
                     subprocess.run(args)
-
-
-
-

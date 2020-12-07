@@ -191,9 +191,11 @@ def train_model_glister(start_rand_idxs, bud):
     if data_name == 'mnist':
         setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
                              criterion_nored, learning_rate, device, 1, num_cls, 1000)
+        num_channels = 1
     elif data_name == 'cifar10':
         setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
                                  criterion_nored, learning_rate, device, 3, num_cls, 1000)
+        num_channels = 3
     print("Starting Greedy Online OneStep Run with taylor!")
     substrn_losses = np.zeros(num_epochs)
     fulltrn_losses = np.zeros(num_epochs)
@@ -207,7 +209,7 @@ def train_model_glister(start_rand_idxs, bud):
         subtrn_loss = 0
         for batch_idx in batch_wise_indices:
             inputs = torch.cat(
-                [fullset[x][0].view(-1, 1, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
+                [fullset[x][0].view(-1, num_channels, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
                 dim=0).type(torch.float)
             targets = torch.tensor([fullset[x][1] for x in batch_idx])
             inputs, targets = inputs.to(device), targets.to(device, non_blocking=True) # targets can have non_blocking=True.
@@ -337,9 +339,11 @@ def train_model_glister_closed(start_rand_idxs, bud):
     if data_name == 'mnist':
         setf_model = ClosedSetFunction(trainset, x_val, y_val, model, criterion,
                              criterion_nored, learning_rate, device, 1, num_cls, 1000)
+        num_channels = 1
     elif data_name == 'cifar10':
         setf_model = ClosedSetFunction(trainset, x_val, y_val, model, criterion,
                                  criterion_nored, learning_rate, device, 3, num_cls, 1000)
+        num_channels = 3
     print("Starting Greedy Online OneStep Run with taylor!")
     substrn_losses = np.zeros(num_epochs)
     fulltrn_losses = np.zeros(num_epochs)
@@ -353,7 +357,7 @@ def train_model_glister_closed(start_rand_idxs, bud):
         subtrn_loss = 0
         for batch_idx in batch_wise_indices:
             inputs = torch.cat(
-                [fullset[x][0].view(-1, 1, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
+                [fullset[x][0].view(-1, num_channels, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
                 dim=0).type(torch.float)
             targets = torch.tensor([fullset[x][1] for x in batch_idx])
             inputs, targets = inputs.to(device), targets.to(device, non_blocking=True) # targets can have non_blocking=True.
