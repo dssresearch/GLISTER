@@ -693,7 +693,7 @@ class Glister_Linear_SetFunction_Closed(object):
                 embDim = self.model.get_embedding_dim()
                 params = [param for param in self.model.parameters()]
                 params[-1].data.sub_((1/self.numSelected) * self.eta * grads_currX[0][0:10])
-                out = torch.zeros(self.init_out.shape[0], self.init_out.shape[1])
+                out = torch.zeros(self.init_out.shape[0], self.init_out.shape[1]).to(self.device)
                 for j in range(self.num_classes):
                     out[:][j] = self.init_out[:][j] - \
                     (torch.matmul(self.init_l1[:][j], ((1/self.numSelected) * self.eta * grads_currX[0][(j*embDim)+10:((j+1)*embDim)+10]).view(-1, 1)) + grads_currX[0][j])
