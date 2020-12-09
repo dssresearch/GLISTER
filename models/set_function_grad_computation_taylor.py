@@ -545,8 +545,8 @@ class Glister_Linear_SetFunction(object):
     def eval_taylor_modular(self, grads):
         grads_val = self.grads_val_curr
         with torch.no_grad():
-            grads_tensor = torch.cat(grads, dim=0)
-            param_update = self.eta * grads_tensor
+            #grads_tensor = torch.cat(grads, dim=0)
+            param_update = self.eta * grads
             gains = torch.matmul(param_update, grads_val)
         return gains
 
@@ -712,8 +712,8 @@ class Glister_Linear_SetFunction_Closed(object):
     def eval_taylor_modular(self, grads):
         grads_val = self.grads_val_curr
         with torch.no_grad():
-            grads_tensor = torch.cat(grads, dim=0)
-            param_update = self.eta * grads_tensor
+            #grads_tensor = torch.cat(grads, dim=0)
+            param_update = self.eta * grads
             gains = torch.matmul(param_update, grads_val)
         return gains
 
