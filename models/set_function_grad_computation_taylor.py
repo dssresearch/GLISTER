@@ -536,10 +536,11 @@ class Glister_Linear_SetFunction(object):
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
+                l1_grads = torch.zeros(l1.shape[0], self.num_classes * embDim).to(self.device)
+                # l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
                 for i in range(l1.shape[0]):
                     for j in range(self.num_classes):
-                        l1_grads[i, j, :] = l0_grads[i, j] * l1[i]
+                        l1_grads[i][(j * embDim):((j + 1) * embDim)] = l0_grads[i, j] * l1[i]
         self.grads_val_curr = torch.mean(torch.cat((l0_grads, l1_grads), dim=1), dim=0).view(-1, 1)
 
     def eval_taylor_modular(self, grads):
@@ -703,10 +704,11 @@ class Glister_Linear_SetFunction_Closed(object):
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes, self.init_l1.shape[1]).to(self.device)
+                l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes * embDim).to(self.device)
+                # l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
                 for i in range(self.init_l1.shape[0]):
                     for j in range(self.num_classes):
-                        l1_grads[i, j, :] = l0_grads[i, j] * self.init_l1[i]
+                        l1_grads[i][(j * embDim):((j + 1) * embDim)] = l0_grads[i, j] * self.init_l1[i]
         self.grads_val_curr = torch.mean(torch.cat((l0_grads, l1_grads), dim=1), dim=0).view(-1, 1)
 
     def eval_taylor_modular(self, grads):
