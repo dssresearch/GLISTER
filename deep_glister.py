@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 from matplotlib import pyplot as plt
 from torch.utils.data.sampler import SubsetRandomSampler
-from models.set_function_grad_computation_taylor import GlisterSetFunction as SetFunction,GlisterSetFunction_Closed as ClosedSetFunction
+from models.set_function_grad_computation_taylor import GlisterSetFunction as SetFunction, Glister_Linear_SetFunction_Closed as ClosedSetFunction
 from models.mnist_net import MnistNet
 from models.resnet import ResNet18
 from utils.custom_dataset import load_mnist_cifar
@@ -701,7 +701,9 @@ random_subset_idx = [trainset.indices[x] for x in start_idxs]
 closed_val_valacc, closed_val_tstacc, closed_val_subtrn_acc, closed_val_full_trn_acc, closed_val_valloss, \
 closed_val_tstloss,  closed_val_subtrnloss, closed_val_full_trn_loss, closed_fval_val_losses, \
 closed_fval_substrn_losses, closed_fval_fulltrn_losses, closed_subset_idxs, closed_step_time= \
-    train_model_glister_closed(start_idxs, bud)
+train_model_glister_closed(start_idxs, bud)
+#train_model_mod_online(start_idxs, bud)\
+
 print("Closed Form Glister run time: ", closed_step_time)
 closed_subset_idxs = [trainset.indices[x] for x in closed_subset_idxs]
 

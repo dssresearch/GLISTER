@@ -24,6 +24,7 @@ class GlisterSetFunction(object):
         self.num_channels = num_channels
         self.num_classes = num_classes
         self.batch_size = batch_size
+        self.numSelected = 0
 
     def _compute_per_element_grads(self, theta_init):
         self.model.load_state_dict(theta_init)
@@ -69,7 +70,7 @@ class GlisterSetFunction(object):
             # update params:
             with torch.no_grad():
                 params = [param for param in self.model.parameters()]
-                params[-1].data.sub_(self.eta * grads_currX)
+                params[-1].data.sub_((1/self.numSelected) * self.eta * grads_currX)
                 scores = F.softmax(self.model(self.x_val), dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
@@ -112,13 +113,13 @@ class GlisterSetFunction(object):
         end_time = time.time()
         print("Updated validation set gradient computation time is: ", end_time - start_time)
         # Dont need the trainloader here!! Same as full batch version!
-        numSelected = 0
+        self.numSelected = 0
         grads_currX = []  # basically stores grads_X for the current greedy set X
         greedySet = list()
         remainSet = list(range(self.N_trn))
         t_ng_start = time.time()  # naive greedy start time
         subset_size = int((len(self.grads_per_elem) / budget) * math.log(100))
-        while (numSelected < budget):
+        while (self.numSelected < budget):
             # Try Using a List comprehension here!
             t_one_elem = time.time()
             subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
@@ -128,17 +129,17 @@ class GlisterSetFunction(object):
             bestId = subset_selected[torch.argmax(gains)]
             greedySet.append(bestId)
             remainSet.remove(bestId)
+            self.numSelected += 1
             # Update info in grads_currX using element=bestId
-            if numSelected > 0:
+            if self.numSelected > 1:
                 self._update_gradients_subset(grads_currX, bestId)
             else:  # If 1st selection, then just set it to bestId grads
                 grads_currX = self.grads_per_elem[bestId]  # Making it a list so that is mutable!
             # Update the grads_val_current using current greedySet grads
             self._update_grads_val(theta_init, grads_currX)
-            if numSelected % 1000 == 0:
+            if self.numSelected % 1000 == 0:
                 # Printing bestGain and Selection time for 1 element.
-                print("numSelected:", numSelected, "Time for 1:", time.time() - t_one_elem)
-            numSelected += 1
+                print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
         print("Naive greedy total time:", time.time() - t_ng_start)
         return list(greedySet), grads_currX
 
@@ -162,6 +163,8 @@ class GlisterSetFunction_Closed(object):
         self.num_classes = num_classes
         self.batch_size = batch_size
         self.init_val_scores = None
+        self.numSelected = 0
+        self.grads_val_curr = None
 
     def _compute_per_element_grads(self, theta_init):
         self.model.load_state_dict(theta_init)
@@ -204,7 +207,7 @@ class GlisterSetFunction_Closed(object):
         elif grads_currX is not None:
             # update params:
             with torch.no_grad():
-                scores = F.softmax(self.init_val_scores - (self.eta * grads_currX).view(1, -1), dim=1)
+                scores = F.softmax(self.init_val_scores - ((self.eta/self.numSelected) * grads_currX).view(1, -1), dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 grads = scores - one_hot_label
@@ -246,13 +249,13 @@ class GlisterSetFunction_Closed(object):
         end_time = time.time()
         print("Updated validation set gradient computation time is: ", end_time - start_time)
         # Dont need the trainloader here!! Same as full batch version!
-        numSelected = 0
+        self.numSelected = 0
         grads_currX = []  # basically stores grads_X for the current greedy set X
         greedySet = list()
         remainSet = list(range(self.N_trn))
         t_ng_start = time.time()  # naive greedy start time
         subset_size = int((len(self.grads_per_elem) / budget) * math.log(100))
-        while (numSelected < budget):
+        while (self.numSelected < budget):
             # Try Using a List comprehension here!
             t_one_elem = time.time()
             subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
@@ -262,19 +265,20 @@ class GlisterSetFunction_Closed(object):
             bestId = subset_selected[torch.argmax(gains)]
             greedySet.append(bestId)
             remainSet.remove(bestId)
+            self.numSelected += 1
             # Update info in grads_currX using element=bestId
-            if numSelected > 0:
+            if self.numSelected > 1:
                 self._update_gradients_subset(grads_currX, bestId)
             else:  # If 1st selection, then just set it to bestId grads
                 grads_currX = self.grads_per_elem[bestId]  # Making it a list so that is mutable!
             # Update the grads_val_current using current greedySet grads
-            self._update_grads_val(theta_init, grads_currX)
-            if numSelected % 1000 == 0:
+            self._update_grads_val(theta_init, grads_currX=grads_currX)
+            if self.numSelected % 1000 == 0:
                 # Printing bestGain and Selection time for 1 element.
-                print("numSelected:", numSelected, "Time for 1:", time.time() - t_one_elem)
-            numSelected += 1
+                print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
         print("Naive greedy total time:", time.time() - t_ng_start)
         return list(greedySet), grads_currX
+
 
 class GLISTER_WeightedSetFunction(object):
     def __init__(self, trainset, x_val, y_val, facloc_size, lam, model, loss_criterion,
@@ -296,6 +300,7 @@ class GLISTER_WeightedSetFunction(object):
         self.num_channels = num_channels
         self.num_classes = num_classes
         self.batch_size = batch_size
+        self.numSelected = 0
 
     def _compute_per_element_grads(self, theta_init):
         self.model.load_state_dict(theta_init)
@@ -349,7 +354,7 @@ class GLISTER_WeightedSetFunction(object):
             # update params:
             with torch.no_grad():
                 params = [param for param in self.model.parameters()]
-                params[-1].data.sub_(self.eta * grads_currX)
+                params[-1].data.sub_((1/self.numSelected) * self.eta * grads_currX)
                 for i in range(10):
                     batch_scores = F.softmax(self.model(
                         self.x_val[(i) * int((len(self.x_val)) / 10): (i + 1) * int((len(self.x_val)) / 10)]), dim=1)
@@ -400,13 +405,13 @@ class GLISTER_WeightedSetFunction(object):
         end_time = time.time()
         print("Updated validation set gradient computation time is: ", end_time - start_time)
         # Dont need the trainloader here!! Same as full batch version!
-        numSelected = 0
+        self.numSelected = 0
         grads_currX = []  # basically stores grads_X for the current greedy set X
         greedySet = list()
         remainSet = list(range(self.N_trn))
         t_ng_start = time.time()  # naive greedy start time
         subset_size = int((len(self.grads_per_elem) / budget) * math.log(100))
-        while (numSelected < budget):
+        while (self.numSelected < budget):
             # Try Using a List comprehension here!
             t_one_elem = time.time()
             subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
@@ -416,22 +421,22 @@ class GLISTER_WeightedSetFunction(object):
             bestId = subset_selected[torch.argmax(gains)]
             greedySet.append(bestId)
             remainSet.remove(bestId)
+            self.numSelected += 1
             # Update info in grads_currX using element=bestId
-            if numSelected > 0:
+            if self.numSelected > 1:
                 self._update_gradients_subset(grads_currX, bestId)
             else:  # If 1st selection, then just set it to bestId grads
                 grads_currX = self.grads_per_elem[bestId]  # Making it a list so that is mutable!
             # Update the grads_val_current using current greedySet grads
             self._update_grads_val(theta_init, grads_currX)
-            if numSelected % 1000 == 0:
+            if self.numSelected % 1000 == 0:
                 # Printing bestGain and Selection time for 1 element.
-                print("numSelected:", numSelected, "Time for 1:", time.time() - t_one_elem)
-            numSelected += 1
+                print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
         print("Naive greedy total time:", time.time() - t_ng_start)
         return list(greedySet), grads_currX
 
 
-class GLISTER_Linear_SetFunction(object):
+class Glister_Linear_SetFunction(object):
     def __init__(self, trainset, x_val, y_val, model, loss_criterion,
                  loss_nored, eta, device, num_channels, num_classes, batch_size):
         self.trainset = trainset  # assume its a sequential loader.
@@ -449,75 +454,84 @@ class GLISTER_Linear_SetFunction(object):
         self.num_channels = num_channels
         self.num_classes = num_classes
         self.batch_size = batch_size
+        self.numSelected = 0
 
     def _compute_per_element_grads(self, theta_init):
         self.model.load_state_dict(theta_init)
+        embDim = self.model.get_embedding_dim()
         batch_wise_indices = np.array(
-            [list(BatchSampler(SequentialSampler(np.arange(self.N_trn)), self.batch_size, drop_last=False))][0])
+            [list(BatchSampler(SequentialSampler(np.arange(self.N_trn)),
+                               self.batch_size, drop_last=False))][0])
         cnt = 0
         for batch_idx in batch_wise_indices:
-            inputs = torch.cat(
-                [self.trainset[x][0].view(-1, self.num_channels, self.trainset[x][0].shape[1], self.trainset[x][0].shape[2]) for x in
-                 batch_idx], dim=0).type(torch.float)
+            inputs = torch.cat([self.trainset[x][0].view(-1, self.num_channels, self.trainset[x][0].shape[1],
+                                self.trainset[x][0].shape[2]) for x in batch_idx], dim=0).type(torch.float)
             targets = torch.tensor([self.trainset[x][1] for x in batch_idx])
             inputs, targets = inputs.to(self.device), targets.to(self.device, non_blocking=True)
             if cnt == 0:
                 with torch.no_grad():
-                    out, l1 = self.model(inputs)
+                    out, l1 = self.model(inputs, last=True)
                     data = F.softmax(out, dim=1)
+                l1_grads = torch.zeros(self.batch_size, embDim * self.num_classes).to(self.device)
                 tmp_tensor = torch.zeros(len(inputs), self.num_classes).to(self.device)
                 tmp_tensor.scatter_(1, targets.view(-1, 1), 1)
                 outputs = tmp_tensor
                 l0_grads = data - outputs
-                l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
+                #l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
                 for i in range(self.batch_size):
                     for j in range(self.num_classes):
-                        l1_grads[i, j, :] = l0_grads[i, j] * l1[i]
+                        l1_grads[i] [j*(embDim) : (j+1) * embDim] = l0_grads[i, j] * l1[i]
                 cnt = cnt + 1
             else:
                 with torch.no_grad():
-                    out, l1 = self.model(inputs)
+                    out, l1 = self.model(inputs, last=True)
                     data = F.softmax(out, dim=1)
                 tmp_tensor = torch.zeros(len(inputs), self.num_classes).to(self.device)
                 tmp_tensor.scatter_(1, targets.view(-1, 1), 1)
                 outputs = tmp_tensor
                 batch_l0_grads = data - outputs
-                batch_l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
+                batch_l1_grads = torch.zeros(self.batch_size, embDim * self.num_classes).to(self.device)
+                #batch_l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
                 for i in range(self.batch_size):
                     for j in range(self.num_classes):
-                        batch_l1_grads[i, j, :] = batch_l0_grads[i, j] * l1[i]
+                        batch_l1_grads[i][j * (embDim): (j + 1) * embDim] = batch_l0_grads[i, j] * l1[i]
+                        #batch_l1_grads[i, j, :] = batch_l0_grads[i, j] * l1[i]
                 l0_grads = torch.cat((l0_grads, batch_l0_grads), dim=0)
                 l1_grads = torch.cat((l1_grads, batch_l1_grads), dim=0)
                 cnt = cnt + 1
         torch.cuda.empty_cache()
         print("Per Element Gradient Computation is Completed")
-        grads_list = list()
-        for i in range(l0_grads.shape[0]):
-            grads_list.append([l0_grads[i], l1_grads[i]])
-        self.grads_per_elem = grads_list
+        #grads_list = list()
+        #for i in range(l0_grads.shape[0]):
+        #    grads_list.append([l0_grads[i], l1_grads[i]])
+        self.grads_per_elem = torch.cat((l0_grads, l1_grads), dim=1)
 
     def _update_grads_val(self, theta_init, grads_currX=None, first_init=False):
         self.model.load_state_dict(theta_init)
         self.model.zero_grad()
         if first_init:
             with torch.no_grad():
-                out, l1 = self.model(self.x_val)
+                out, l1 = self.model(self.x_val, last=True)
                 scores = F.softmax(out, dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
+                embDim = self.model.get_embedding_dim()
+                l1_grads = torch.zeros(l1.shape[0], self.num_classes * embDim).to(self.device)
+                #l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
                 for i in range(l1.shape[0]):
                     for j in range(self.num_classes):
-                        l1_grads[i, j, :] = l0_grads[i, j] * l1[i]
+                        l1_grads[i][(j * embDim):((j+1) * embDim)] = l0_grads[i, j] * l1[i]
         # populate the gradients in model params based on loss.
         elif grads_currX is not None:
             # update params:
             with torch.no_grad():
+                embDim = self.model.get_embedding_dim()
                 params = [param for param in self.model.parameters()]
-                params[-1].data.sub_(self.eta * grads_currX[0])
-                params[-2].data.sub_(self.eta * grads_currX[1])
-                out, l1 = self.model(self.x_val)
+                params[-1].data.sub_((1/self.numSelected) * self.eta * grads_currX[0][0:10])
+                for j in range(self.num_classes):
+                    params[-2].data[j].sub_((1/self.numSelected) * self.eta * grads_currX[0][(j*embDim)+10:((j+1)*embDim)+10])
+                out, l1 = self.model(self.x_val, last=True)
                 scores = F.softmax(out, dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
@@ -526,8 +540,7 @@ class GLISTER_Linear_SetFunction(object):
                 for i in range(l1.shape[0]):
                     for j in range(self.num_classes):
                         l1_grads[i, j, :] = l0_grads[i, j] * l1[i]
-        self.grads_val_curr = torch.cat((torch.flatten(l0_grads.mean(dim=0)), torch.flatten(l1_grads.mean(dim=0))),
-                                        dim=0)
+        self.grads_val_curr = torch.mean(torch.cat((l0_grads, l1_grads), dim=1), dim=0).view(-1, 1)
 
     def eval_taylor_modular(self, grads):
         grads_val = self.grads_val_curr
@@ -541,8 +554,7 @@ class GLISTER_Linear_SetFunction(object):
     # Note that it modifies the inpute vector! Also grads_X is a list! grad_e is a tuple!
     def _update_gradients_subset(self, grads_X, element):
         grads_e = self.grads_per_elem[element]
-        grads_X[0] += grads_e[0]
-        grads_X[1] += grads_e[1]
+        grads_X += grads_e
 
     # Same as before i.e full batch case! No use of dataloaders here!
     # Everything is abstracted away in eval call
@@ -556,38 +568,38 @@ class GLISTER_Linear_SetFunction(object):
         end_time = time.time()
         print("Updated validation set gradient computation time is: ", end_time - start_time)
         # Dont need the trainloader here!! Same as full batch version!
-        numSelected = 0
+        self.numSelected = 0
         grads_currX = []  # basically stores grads_X for the current greedy set X
         greedySet = list()
         remainSet = list(range(self.N_trn))
         t_ng_start = time.time()  # naive greedy start time
         subset_size = int((len(self.grads_per_elem) / budget) * math.log(100))
-        while (numSelected < budget):
+        while (self.numSelected < budget):
             # Try Using a List comprehension here!
             t_one_elem = time.time()
             subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
-            rem_grads = [torch.cat((torch.flatten(self.grads_per_elem[x][0]), torch.flatten(self.grads_per_elem[x][1])),
-                                   dim=0).reshape(1, -1) for x in subset_selected]
+            rem_grads = self.grads_per_elem[subset_selected]
             gains = self.eval_taylor_modular(rem_grads)
             # Update the greedy set and remaining set
             bestId = subset_selected[torch.argmax(gains)]
             greedySet.append(bestId)
             remainSet.remove(bestId)
+            self.numSelected += 1
             # Update info in grads_currX using element=bestId
-            if numSelected > 0:
+            if self.numSelected > 1:
                 self._update_gradients_subset(grads_currX, bestId)
             else:  # If 1st selection, then just set it to bestId grads
-                grads_currX = self.grads_per_elem[bestId]  # Making it a list so that is mutable!
+                grads_currX = self.grads_per_elem[bestId].view(1, -1)  # Making it a list so that is mutable!
             # Update the grads_val_current using current greedySet grads
             self._update_grads_val(theta_init, grads_currX)
-            if numSelected % 1 == 0:
+            if self.numSelected % 1 == 0:
                 # Printing bestGain and Selection time for 1 element.
-                print("numSelected:", numSelected, "Time for 1:", time.time() - t_one_elem)
-            numSelected += 1
+                print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
         print("Naive greedy total time:", time.time() - t_ng_start)
         return list(greedySet), grads_currX
 
-class GLISTER_Linear_SetFunction_Closed(object):
+
+class Glister_Linear_SetFunction_Closed(object):
     def __init__(self, trainset, x_val, y_val, model, loss_criterion,
                  loss_nored, eta, device, num_channels, num_classes, batch_size):
         self.trainset = trainset  # assume its a sequential loader.
@@ -605,85 +617,97 @@ class GLISTER_Linear_SetFunction_Closed(object):
         self.num_channels = num_channels
         self.num_classes = num_classes
         self.batch_size = batch_size
+        self.numSelected = 0
 
     def _compute_per_element_grads(self, theta_init):
         self.model.load_state_dict(theta_init)
+        embDim = self.model.get_embedding_dim()
         batch_wise_indices = np.array(
-            [list(BatchSampler(SequentialSampler(np.arange(self.N_trn)), self.batch_size, drop_last=False))][0])
+            [list(BatchSampler(SequentialSampler(np.arange(self.N_trn)),
+                               self.batch_size, drop_last=False))][0])
         cnt = 0
         for batch_idx in batch_wise_indices:
-            inputs = torch.cat(
-                [self.trainset[x][0].view(-1, self.num_channels, self.trainset[x][0].shape[1], self.trainset[x][0].shape[2]) for x in
-                 batch_idx], dim=0).type(torch.float)
+            inputs = torch.cat([self.trainset[x][0].view(-1, self.num_channels, self.trainset[x][0].shape[1],
+                                self.trainset[x][0].shape[2]) for x in batch_idx], dim=0).type(torch.float)
             targets = torch.tensor([self.trainset[x][1] for x in batch_idx])
             inputs, targets = inputs.to(self.device), targets.to(self.device, non_blocking=True)
             if cnt == 0:
                 with torch.no_grad():
-                    out, l1 = self.model(inputs)
+                    out, l1 = self.model(inputs, last=True)
                     data = F.softmax(out, dim=1)
+                l1_grads = torch.zeros(self.batch_size, embDim * self.num_classes).to(self.device)
                 tmp_tensor = torch.zeros(len(inputs), self.num_classes).to(self.device)
                 tmp_tensor.scatter_(1, targets.view(-1, 1), 1)
                 outputs = tmp_tensor
                 l0_grads = data - outputs
-                l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
+                #l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
                 for i in range(self.batch_size):
                     for j in range(self.num_classes):
-                        l1_grads[i, j, :] = l0_grads[i, j] * l1[i]
+                        l1_grads[i] [j*(embDim) : (j+1) * embDim] = l0_grads[i, j] * l1[i]
                 cnt = cnt + 1
             else:
                 with torch.no_grad():
-                    out, l1 = self.model(inputs)
+                    out, l1 = self.model(inputs, last=True)
                     data = F.softmax(out, dim=1)
                 tmp_tensor = torch.zeros(len(inputs), self.num_classes).to(self.device)
                 tmp_tensor.scatter_(1, targets.view(-1, 1), 1)
                 outputs = tmp_tensor
                 batch_l0_grads = data - outputs
-                batch_l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
+                batch_l1_grads = torch.zeros(self.batch_size, embDim * self.num_classes).to(self.device)
+                #batch_l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
                 for i in range(self.batch_size):
                     for j in range(self.num_classes):
-                        batch_l1_grads[i, j, :] = batch_l0_grads[i, j] * l1[i]
+                        batch_l1_grads[i][j * (embDim): (j + 1) * embDim] = batch_l0_grads[i, j] * l1[i]
+                        #batch_l1_grads[i, j, :] = batch_l0_grads[i, j] * l1[i]
                 l0_grads = torch.cat((l0_grads, batch_l0_grads), dim=0)
                 l1_grads = torch.cat((l1_grads, batch_l1_grads), dim=0)
                 cnt = cnt + 1
         torch.cuda.empty_cache()
         print("Per Element Gradient Computation is Completed")
-        grads_list = list()
-        for i in range(l0_grads.shape[0]):
-            grads_list.append([l0_grads[i], l1_grads[i]])
-        self.grads_per_elem = grads_list
+        #grads_list = list()
+        #for i in range(l0_grads.shape[0]):
+        #    grads_list.append([l0_grads[i], l1_grads[i]])
+        self.grads_per_elem = torch.cat((l0_grads, l1_grads), dim=1)
 
     def _update_grads_val(self, theta_init, grads_currX=None, first_init=False):
         self.model.load_state_dict(theta_init)
         self.model.zero_grad()
+
         if first_init:
             with torch.no_grad():
-                out, l1 = self.model(self.x_val)
-                scores = F.softmax(out, dim=1)
+                self.init_out, self.init_l1 = self.model(self.x_val, last=True)
+                scores = F.softmax(self.init_out, dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
-                for i in range(l1.shape[0]):
+                embDim = self.model.get_embedding_dim()
+                l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes * embDim).to(self.device)
+                #l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
+                for i in range(self.init_l1.shape[0]):
                     for j in range(self.num_classes):
-                        l1_grads[i, j, :] = l0_grads[i, j] * l1[i]
+                        l1_grads[i][(j * embDim):((j+1) * embDim)] = l0_grads[i, j] * self.init_l1[i]
         # populate the gradients in model params based on loss.
         elif grads_currX is not None:
             # update params:
             with torch.no_grad():
+                embDim = self.model.get_embedding_dim()
                 params = [param for param in self.model.parameters()]
-                params[-1].data.sub_(self.eta * grads_currX[0])
-                params[-2].data.sub_(self.eta * grads_currX[1])
-                out, l1 = self.model(self.x_val)
+                params[-1].data.sub_((1/self.numSelected) * self.eta * grads_currX[0][0:10])
+                out = torch.zeros(self.init_out.shape[0], self.init_out.shape[1])
+                for j in range(self.num_classes):
+                    out[:][j] = self.init_out[:][j] - \
+                    (torch.matmul(self.init_l1, ((1/self.numSelected) * self.eta * grads_currX[0][(j*embDim)+10:((j+1)*embDim)+10]).view(-1, 1)) + grads_currX[0][j])
+                    #params[-2].data[j].sub_((1/self.numSelected) * self.eta * grads_currX[0][(j*embDim)+10:((j+1)*embDim)+10])
+                #out, l1 = self.model(self.x_val, last=True)
                 scores = F.softmax(out, dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
-                for i in range(l1.shape[0]):
+                l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes, self.init_l1.shape[1]).to(self.device)
+                for i in range(self.init_l1.shape[0]):
                     for j in range(self.num_classes):
-                        l1_grads[i, j, :] = l0_grads[i, j] * l1[i]
-        self.grads_val_curr = torch.cat((torch.flatten(l0_grads.mean(dim=0)), torch.flatten(l1_grads.mean(dim=0))),
-                                        dim=0)
+                        l1_grads[i, j, :] = l0_grads[i, j] * self.init_l1[i]
+        self.grads_val_curr = torch.mean(torch.cat((l0_grads, l1_grads), dim=1), dim=0).view(-1, 1)
 
     def eval_taylor_modular(self, grads):
         grads_val = self.grads_val_curr
@@ -697,8 +721,7 @@ class GLISTER_Linear_SetFunction_Closed(object):
     # Note that it modifies the inpute vector! Also grads_X is a list! grad_e is a tuple!
     def _update_gradients_subset(self, grads_X, element):
         grads_e = self.grads_per_elem[element]
-        grads_X[0] += grads_e[0]
-        grads_X[1] += grads_e[1]
+        grads_X += grads_e
 
     # Same as before i.e full batch case! No use of dataloaders here!
     # Everything is abstracted away in eval call
@@ -712,34 +735,33 @@ class GLISTER_Linear_SetFunction_Closed(object):
         end_time = time.time()
         print("Updated validation set gradient computation time is: ", end_time - start_time)
         # Dont need the trainloader here!! Same as full batch version!
-        numSelected = 0
+        self.numSelected = 0
         grads_currX = []  # basically stores grads_X for the current greedy set X
         greedySet = list()
         remainSet = list(range(self.N_trn))
         t_ng_start = time.time()  # naive greedy start time
         subset_size = int((len(self.grads_per_elem) / budget) * math.log(100))
-        while (numSelected < budget):
+        while (self.numSelected < budget):
             # Try Using a List comprehension here!
             t_one_elem = time.time()
             subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
-            rem_grads = [torch.cat((torch.flatten(self.grads_per_elem[x][0]), torch.flatten(self.grads_per_elem[x][1])),
-                                   dim=0).reshape(1, -1) for x in subset_selected]
+            rem_grads = self.grads_per_elem[subset_selected]
             gains = self.eval_taylor_modular(rem_grads)
             # Update the greedy set and remaining set
             bestId = subset_selected[torch.argmax(gains)]
             greedySet.append(bestId)
             remainSet.remove(bestId)
+            self.numSelected += 1
             # Update info in grads_currX using element=bestId
-            if numSelected > 0:
+            if self.numSelected > 1:
                 self._update_gradients_subset(grads_currX, bestId)
             else:  # If 1st selection, then just set it to bestId grads
-                grads_currX = self.grads_per_elem[bestId]  # Making it a list so that is mutable!
+                grads_currX = self.grads_per_elem[bestId].view(1, -1)  # Making it a list so that is mutable!
             # Update the grads_val_current using current greedySet grads
             self._update_grads_val(theta_init, grads_currX)
-            if numSelected % 1 == 0:
+            if self.numSelected % 1000 == 0:
                 # Printing bestGain and Selection time for 1 element.
-                print("numSelected:", numSelected, "Time for 1:", time.time() - t_one_elem)
-            numSelected += 1
+                print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
         print("Naive greedy total time:", time.time() - t_ng_start)
         return list(greedySet), grads_currX
 
