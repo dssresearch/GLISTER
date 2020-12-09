@@ -139,7 +139,6 @@ def perform_knnsb_selection(datadir, dset_name, budget, selUsing):
 
 
 def gen_rand_prior_indices(size):
-
     per_sample_count = [len(torch.where(y_trn == x)[0]) for x in np.arange(num_cls)]
     per_sample_budget = int(size/num_cls)
     total_set = list(np.arange(N))
@@ -214,7 +213,6 @@ def train_model_craig(start_rand_idxs, bud, convex=True,every=False):
         val_correct = val_predict.eq(y_val).sum().item()
         val_total = y_val.size(0)
     val_acc = 100 * val_correct / val_total
-
     correct = 0
     total = 0
     with torch.no_grad():
@@ -245,18 +243,13 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
         print("Using:", torch.cuda.device_count(), "GPUs!")
         model = nn.DataParallel(model)
         cudnn.benchmark = True
-
     model = model.to(device)
-
-    
     idxs = start_rand_idxs
 
     if func_name == 'Facloc Regularized':
         x_val1 = torch.cat([x_val, x_trn[fac_loc_idx]], dim=0)
         y_val1 = torch.cat([y_val, y_trn[fac_loc_idx]], dim=0)
-
     total_idxs = list(np.arange(len(y_trn)))
-
     criterion = nn.CrossEntropyLoss()
     criterion_nored = nn.CrossEntropyLoss(reduction='none')
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
@@ -264,15 +257,12 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
     if func_name == 'Full OneStep':
         setf_model = SetFunctionBatch(x_trn, y_trn, x_val, y_val, valid, model,
                                       criterion, criterion_nored, learning_rate, device)
-
     elif func_name == 'Facility Location':
         setf_model = SetFunctionFacLoc(device, train_loader_greedy)
         idxs = setf_model.lazy_greedy_max(bud, model)
-
     elif func_name == 'Facloc Regularized':
         setf_model = SetFunctionTaylor(x_trn, y_trn, x_val1, y_val1, valid, model,
                                        criterion, criterion_nored, learning_rate, device)
-
     else:
         setf_model = SetFunctionTaylor(x_trn, y_trn, x_val, y_val, valid, model,
                                        criterion, criterion_nored, learning_rate, device)

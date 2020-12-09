@@ -754,7 +754,6 @@ class SetFunctionTaylor(object):
         self.grads_val_curr = None
         self.device = device
 
-
     def _compute_per_element_grads(self, theta_init):
         self.model.load_state_dict(theta_init)
         self.model.zero_grad()
@@ -766,7 +765,6 @@ class SetFunctionTaylor(object):
             grads_vec[item] = torch.autograd.grad(losses[item], self.model.parameters(), retain_graph=True)
         self.grads_per_elem = grads_vec
 
-
     def _compute_init_valloss_grads(self, theta_init):
         # Now compute the Validation loss initial gradient
         self.model.load_state_dict(theta_init)
@@ -775,7 +773,6 @@ class SetFunctionTaylor(object):
         floss = -1 * self.loss(scores, self.y_val)
         self.grads_curr_subset  = torch.autograd.grad(floss, self.model.parameters())
         self.first_element = False
-
 
     # Updates gradients of set X + element (basically adding element to X)
     #Also computes F'(theta_X) part of taylor approx
