@@ -761,7 +761,7 @@ class Glister_Linear_SetFunction_Closed(object):
                 grads_currX = self.grads_per_elem[bestId].view(1, -1)  # Making it a list so that is mutable!
             # Update the grads_val_current using current greedySet grads
             self._update_grads_val(theta_init, grads_currX)
-            if (self.numSelected - 1)% 1000 == 0:
+            if (self.numSelected - 1)%1 == 0:
                 # Printing bestGain and Selection time for 1 element.
                 print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
         print("Naive greedy total time:", time.time() - t_ng_start)

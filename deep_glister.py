@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 from matplotlib import pyplot as plt
 from torch.utils.data.sampler import SubsetRandomSampler
-from models.set_function_grad_computation_taylor import GlisterSetFunction as SetFunction, Glister_Linear_SetFunction_Closed as ClosedSetFunction
+from models.set_function_grad_computation_taylor import GlisterSetFunction as SetFunction, Glister_Linear_SetFunction as ClosedSetFunction
 from models.mnist_net import MnistNet
 from models.resnet import ResNet18
 from utils.custom_dataset import load_mnist_cifar
