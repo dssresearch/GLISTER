@@ -77,15 +77,6 @@ class GlisterSetFunction(object):
                 grads = scores - one_hot_label
         self.grads_val_curr = grads.mean(dim=0).view(-1, 1)  # reset parm.grads to zero!
 
-    #def eval_taylor(self, grads_elem, theta_init):
-    #    grads_val = self.grads_val_curr
-    #    dot_prod = 0
-    #    self.model.load_state_dict(theta_init)
-    #    with torch.no_grad():
-    #        params = [param for param in self.model.parameters()]
-    #        dot_prod += torch.sum(grads_val[0] * (params[-1].data - self.eta * grads_elem[0]))
-    #    return dot_prod.data
-
     def eval_taylor_modular(self, grads, theta_init):
         grads_val = self.grads_val_curr
         #self.model.load_state_dict(theta_init)
@@ -214,15 +205,6 @@ class GlisterSetFunction_Closed(object):
                 grads = scores - one_hot_label
         self.grads_val_curr = grads.mean(dim=0).view(-1, 1)  # reset parm.grads to zero!
 
-    #def eval_taylor(self, grads_elem, theta_init):
-    #    grads_val = self.grads_val_curr
-    #    dot_prod = 0
-    #    self.model.load_state_dict(theta_init)
-    #    with torch.no_grad():
-    #        params = [param for param in self.model.parameters()]
-    #        dot_prod += torch.sum(grads_val[0] * (params[-1].data - self.eta * grads_elem[0]))
-    #    return dot_prod.data
-
     def eval_taylor_modular(self, grads, theta_init):
         grads_val = self.grads_val_curr
         with torch.no_grad():
@@ -331,15 +313,6 @@ class Small_GlisterSetFunction(object):
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 grads = scores - one_hot_label
         self.grads_val_curr = grads.mean(dim=0).view(-1, 1)  # reset parm.grads to zero!
-
-    #def eval_taylor(self, grads_elem, theta_init):
-    #    grads_val = self.grads_val_curr
-    #    dot_prod = 0
-    #    self.model.load_state_dict(theta_init)
-    #    with torch.no_grad():
-    #        params = [param for param in self.model.parameters()]
-    #        dot_prod += torch.sum(grads_val[0] * (params[-1].data - self.eta * grads_elem[0]))
-    #    return dot_prod.data
 
     def eval_taylor_modular(self, grads, theta_init):
         grads_val = self.grads_val_curr
@@ -455,10 +428,7 @@ class Small_GlisterSetFunction_Closed(object):
 
     def eval_taylor_modular(self, grads, theta_init):
         grads_val = self.grads_val_curr
-        #self.model.load_state_dict(theta_init)
         with torch.no_grad():
-            #grads_tensor = torch.cat(grads, dim=0)
-            #param_update = self.eta * grads_tensor
             gains = torch.matmul(grads, grads_val)
         return gains
 
