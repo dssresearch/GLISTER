@@ -29,3 +29,6 @@ class MnistNet(nn.Module):
             return output, x
         else:
             return output
+
+    def get_embedding_dim(self):
+        return 128

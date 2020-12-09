@@ -20,6 +20,10 @@ class TwoLayerNet(nn.Module):
     def get_feature_dim(self):
         return self.feature_dim
 
+    def get_embedding_dim(self):
+        return self.feature_dim
+
+
 class ThreeLayerNet(nn.Module):
     def __init__(self, input_dim, num_classes, h1, h2):
         super(ThreeLayerNet, self).__init__()
@@ -38,4 +42,7 @@ class ThreeLayerNet(nn.Module):
             return scores
 
     def get_feature_dim(self):
+        return self.feature_dim
+
+    def get_embedding_dim(self):
         return self.feature_dim
