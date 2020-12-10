@@ -475,7 +475,7 @@ class Small_GlisterAct_Linear_SetFunction_Closed_Vect(object):
             t_one_elem = time.time()
             '''subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
             rem_grads = self.grads_per_elem[subset_selected]'''
-            gains = self.eval_taylor_modular(self.grads_per_elem)#rem_grads)
+            gains = self.eval_taylor_modular(self.grads_per_elem[remainSet])#rem_grads)
             # Update the greedy set and remaining set
             #bestId = subset_selected[torch.argmax(gains).item()]
             bestId = remainSet[torch.argmax(gains).item()]
