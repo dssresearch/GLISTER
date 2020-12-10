@@ -190,7 +190,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
 
     model = model.to(device)
 
-    idxs = start_rand_idxs
+    sub_idxs = start_rand_idxs
 
     if func_name == 'Facloc Regularized':
         x_val1 = torch.cat([x_val, x_trn[fac_loc_idx]], dim=0)
@@ -206,11 +206,11 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     elif func_name == 'Facility Location':
         if data_name != 'covertype':
             setf_model = SetFunctionFacLoc(device, train_batch_size_for_greedy)
-            idxs = setf_model.lazy_greedy_max(bud, x_trn,model)
+            sub_idxs = setf_model.lazy_greedy_max(bud, x_trn,model)
         else:
-            idxs = run_stochastic_Facloc(x_trn, y_trn, bud)
+            sub_idxs = run_stochastic_Facloc(x_trn, y_trn, bud)
 
-        facility_loaction_warm_start = copy.deepcopy(idxs)
+        facility_loaction_warm_start = copy.deepcopy(sub_idxs)
 
 
     elif func_name == 'Facloc Regularized':
@@ -229,8 +229,8 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
         #        criterion, criterion_nored, learning_rate, device, N) 
 
     remainList = set(list(range(N)))
-    idxs = list(idxs)
-    remainList = remainList.difference(idxs)
+    sub_idxs = list(sub_idxs)
+    remainList = remainList.difference(sub_idxs)
 
     if func_name == 'Taylor Online':
         print("Starting Online OneStep Run with taylor on loss!")
@@ -278,7 +278,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     model =  model.apply(weight_reset).cuda()
     #print(model.linear2.weight)
     for n in range(no_select):
-        loader_tr = DataLoader(CustomDataset_WithId(x_trn[idxs], y_trn[idxs], transform=None),batch_size=no_points)
+        loader_tr = DataLoader(CustomDataset_WithId(x_trn[sub_idxs], y_trn[sub_idxs], transform=None),batch_size=no_points)
         model.train()
         for i in range(num_epochs):
             # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
@@ -382,7 +382,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             remainList = remainList.difference(new_idxs)
             new_idxs.extend(list(np.random.choice(list(remainList), size=int(0.1 * no_points), replace=False)))
             remainList = remainList.difference(new_idxs)
-            idxs.extend(new_idxs)
+            sub_idxs.extend(new_idxs)
 
         elif func_name == "FASS":
 
@@ -407,7 +407,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             knn_idxs_flag_val = list(np.array(list(remainList))[indices.cpu()][knn_idxs_flag_val])
 
             remainList = remainList.difference(knn_idxs_flag_val)
-            idxs.extend(knn_idxs_flag_val)
+            sub_idxs.extend(knn_idxs_flag_val)
 
         elif func_name == 'Random':
             state = np.random.get_state()
@@ -416,7 +416,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             new_idxs = np.random.choice(list(remainList), size=no_points, replace=False)
             np.random.set_state(state)
             remainList = remainList.difference(new_idxs)
-            idxs.extend(new_idxs)
+            sub_idxs.extend(new_idxs)
 
 
         elif func_name == 'Random Perturbation':
@@ -424,7 +424,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             new_idxs = np.array(list(remainList))[new_idxs]
 
             remainList = remainList.difference(new_idxs)
-            idxs.extend(new_idxs) 
+            sub_idxs.extend(new_idxs) 
 
         elif func_name == 'Facility Location':
 
@@ -435,13 +435,13 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             new_idxs = np.array(list(remainList))[new_idxs]
 
             remainList = remainList.difference(new_idxs)
-            idxs.extend(new_idxs)
+            sub_idxs.extend(new_idxs)
 
         else: 
             new_idxs = setf_model.naive_greedy_max(curr_X_trn, rem_predict, no_points, clone_dict)  # , grads_idxs
             new_idxs = np.array(list(remainList))[new_idxs]
             remainList = remainList.difference(new_idxs)
-            idxs.extend(new_idxs) 
+            sub_idxs.extend(new_idxs) 
 
         '''elif func_name == 'Proximal':
             previous = torch.zeros(N,device=device)
@@ -457,13 +457,13 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     # Calculate Val and Test Accuracy
     
     if func_name == 'Facility Location':
-        return val_accies, test_accies, unlab_accies, idxs,facility_loaction_warm_start
+        return val_accies, test_accies, unlab_accies, sub_idxs,facility_loaction_warm_start
     else:
-        return val_accies, test_accies, unlab_accies, idxs
+        return val_accies, test_accies, unlab_accies, sub_idxs
 
 
 start_idxs = np.random.choice(N, size=no_points, replace=False)
-facility_loaction_warm_start = start_idxs
+#facility_loaction_warm_start = start_idxs
 # Facility Location Run
 fva, fta, fua, facloc_idxs, facility_loaction_warm_start = active_learning_taylor('Facility Location',None,no_points)
 #knn
