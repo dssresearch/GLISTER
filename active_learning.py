@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 from models.simpleNN_net import * #ThreeLayerNet
 from models.logistic_regression import LogisticRegNet
-from models.set_function_act_learn import SetFunctionFacLoc,SetFunctionTaylor, SetFunctionBatch
+from models.set_function_act_learn import SetFunctionFacLoc, SetFunctionTaylor, SetFunctionBatch, Small_GlisterAct_Linear_SetFunction_Closed
 from sklearn.model_selection import train_test_split
 #from utils.custom_dataset import CustomDataset_act, load_dataset_numpy, write_knndata
 #from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
@@ -213,12 +213,16 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
 
 
     elif func_name == 'Facloc Regularized':
-        setf_model = SetFunctionTaylor(x_val1, y_val1, model, criterion, criterion_nored, learning_rate, device,num_cls)
+        setf_model = Small_GlisterAct_Linear_SetFunction_Closed(x_val1, y_val1, model, criterion,
+                 criterion_nored, learning_rate, device, num_cls)
+            #SetFunctionTaylor(x_val1, y_val1, model, criterion, criterion_nored, learning_rate, device,num_cls)
 
     else:
         #setf_model = SetFunctionTaylorDeep(train_loader_greedy, valid_loader, valid, model, 
         #        criterion, criterion_nored, learning_rate, device, N)
-        setf_model = SetFunctionTaylor(x_val, y_val, model, criterion, criterion_nored, learning_rate, device,num_cls)
+        setf_model = Small_GlisterAct_Linear_SetFunction_Closed(x_val, y_val, model, criterion,
+                 criterion_nored, learning_rate, device, num_cls)
+            #SetFunctionTaylor(x_val, y_val, model, criterion, criterion_nored, learning_rate, device,num_cls)
 
         #setf_model = SetFunctionTaylorDeep_ReLoss_Mean(x_trn, y_trn, train_batch_size_for_greedy, x_val, y_val, valid, model, 
         #        criterion, criterion_nored, learning_rate, device, N) 
@@ -435,7 +439,6 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
         else: 
             new_idxs = setf_model.naive_greedy_max(curr_X_trn,rem_predict,no_points, clone_dict)  # , grads_idxs
             new_idxs = np.array(list(remainList))[new_idxs]
-
             remainList = remainList.difference(new_idxs)
             idxs.extend(new_idxs) 
 

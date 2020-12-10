@@ -348,12 +348,12 @@ class Small_GlisterSetFunction(object):
         while (self.numSelected < budget):
             # Try Using a List comprehension here!
             t_one_elem = time.time()
-            #subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
-            rem_grads = self.grads_per_elem[remainSet]
+            subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
+            rem_grads = self.grads_per_elem[subset_selected]
             #[self.grads_per_elem[x].view(1, self.grads_per_elem[0].shape[0]) for x in subset_selected]
             gains = self.eval_taylor_modular(rem_grads, theta_init)
             # Update the greedy set and remaining set
-            bestId = remainSet[torch.argmax(gains).item()]
+            bestId = subset_selected[torch.argmax(gains).item()]
             #remainSet[torch.argmax(gains)]
             greedySet.append(bestId)
             remainSet.remove(bestId)
@@ -458,12 +458,10 @@ class Small_GlisterSetFunction_Closed(object):
             # Try Using a List comprehension here!
             t_one_elem = time.time()
             subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
-            rem_grads = \
-                self.grads_per_elem[subset_selected]
-                #[self.grads_per_elem[x].view(1, self.grads_per_elem[0].shape[0]) for x in subset_selected]
+            rem_grads = self.grads_per_elem[subset_selected]
             gains = self.eval_taylor_modular(rem_grads, theta_init)
             # Update the greedy set and remaining set
-            bestId = subset_selected[torch.argmax(gains)]
+            bestId = subset_selected[torch.argmax(gains).item()]
             greedySet.append(bestId)
             remainSet.remove(bestId)
             self.numSelected += 1
@@ -923,11 +921,11 @@ class Small_Glister_Linear_SetFunction(object):
         while (self.numSelected < budget):
             # Try Using a List comprehension here!
             t_one_elem = time.time()
-            #subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
-            rem_grads = self.grads_per_elem[remainSet]
+            subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
+            rem_grads = self.grads_per_elem[subset_selected]
             gains = self.eval_taylor_modular(rem_grads)
             # Update the greedy set and remaining set
-            bestId = remainSet[torch.argmax(gains).item()]
+            bestId = subset_selected[torch.argmax(gains).item()]
             greedySet.append(bestId)
             remainSet.remove(bestId)
             self.numSelected += 1
@@ -1053,11 +1051,11 @@ class Small_Glister_Linear_SetFunction_Closed(object):
         while (self.numSelected < budget):
             # Try Using a List comprehension here!
             t_one_elem = time.time()
-            #subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
-            rem_grads = self.grads_per_elem[remainSet]
+            subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
+            rem_grads = self.grads_per_elem[subset_selected]
             gains = self.eval_taylor_modular(rem_grads)
             # Update the greedy set and remaining set
-            bestId = remainSet[torch.argmax(gains).item()]
+            bestId = subset_selected[torch.argmax(gains).item()]
             greedySet.append(bestId)
             remainSet.remove(bestId)
             self.numSelected += 1
@@ -1177,12 +1175,11 @@ class Small_GLISTER_WeightedSetFunction(object):
         while (self.numSelected < budget):
             # Try Using a List comprehension here!
             t_one_elem = time.time()
-            #subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
-            rem_grads = self.grads_per_elem[remainSet]
-                #[self.grads_per_elem[x].view(1, self.grads_per_elem[0].shape[0]) for x in subset_selected]
+            subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
+            rem_grads = self.grads_per_elem[subset_selected]
             gains = self.eval_taylor_modular(rem_grads, theta_init)
             # Update the greedy set and remaining set
-            bestId = remainSet[torch.argmax(gains).item()]
+            bestId = subset_selected[torch.argmax(gains).item()]
             greedySet.append(bestId)
             remainSet.remove(bestId)
             self.numSelected += 1
