@@ -82,8 +82,8 @@ class Strategy:
         optimizer = optim.SGD(self.clf.parameters(), lr = self.args['lr'])
 
         idxs_train = np.arange(self.n_pool)[self.idxs_lb]
-        loader_tr = DataLoader(self.handler(self.X[idxs_train], torch.Tensor(self.Y[idxs_train]).long(),transform=self.args['transform']), 
-            shuffle=False,**self.args['loader_tr_args'])
+        loader_tr = DataLoader(self.handler(self.X[idxs_train].float(), torch.Tensor(self.Y[idxs_train]), transform=self.args['transform']).float(),
+            shuffle=False, **self.args['loader_tr_args'])
    
         epoch = 1
         accCurrent = 0.
