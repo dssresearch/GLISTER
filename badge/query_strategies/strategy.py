@@ -12,7 +12,7 @@ from copy import deepcopy
 class Strategy:
     def __init__(self, X, Y, idxs_lb, net, handler, args):
         self.X = X
-        self.Y = Y
+        self.Y = Y.float()
         self.idxs_lb = idxs_lb
         self.clf = net
         self.handler = handler
@@ -44,7 +44,7 @@ class Strategy:
             x, y = Variable(x.cuda()), Variable(y.cuda())
             optimizer.zero_grad()
             out, e1 = self.clf(x)
-            loss = F.cross_entropy(out, y)
+            loss = F.cross_entropy(out, y.long())
             accFinal += torch.sum((torch.max(out,1)[1] == y).float()).data.item()
             loss.backward()
 
@@ -80,9 +80,8 @@ class Strategy:
         #print(self.clf.lm2.weight)
         #optimizer = optim.Adam(self.clf.parameters(), lr = self.args['lr'], weight_decay=0)
         optimizer = optim.SGD(self.clf.parameters(), lr = self.args['lr'])
-
         idxs_train = np.arange(self.n_pool)[self.idxs_lb]
-        loader_tr = DataLoader(self.handler(self.X[idxs_train].float(), torch.Tensor(self.Y[idxs_train]), transform=self.args['transform']).float(),
+        loader_tr = DataLoader(self.handler(self.X[idxs_train], torch.Tensor(self.Y[idxs_train]), transform=self.args['transform']),
             shuffle=False, **self.args['loader_tr_args'])
    
         epoch = 1

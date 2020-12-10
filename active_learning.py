@@ -437,7 +437,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             idxs.extend(new_idxs)
 
         else: 
-            new_idxs = setf_model.naive_greedy_max(curr_X_trn,rem_predict,no_points, clone_dict)  # , grads_idxs
+            new_idxs = setf_model.naive_greedy_max(curr_X_trn, rem_predict, no_points, clone_dict)  # , grads_idxs
             new_idxs = np.array(list(remainList))[new_idxs]
             remainList = remainList.difference(new_idxs)
             idxs.extend(new_idxs) 

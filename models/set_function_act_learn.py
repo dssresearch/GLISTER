@@ -30,7 +30,7 @@ class Small_GlisterAct_SetFunction(object):
             one_hot_label.scatter_(1, y_trn.view(-1, 1), 1)
             grads = scores - one_hot_label
         torch.cuda.empty_cache()
-        print("Per Element Gradient Computation is Completed")
+        #print("Per Element Gradient Computation is Completed")
         self.grads_per_elem = grads
 
     def _update_grads_val(self, theta_init, grads_currX=None, first_init=False):
@@ -69,17 +69,17 @@ class Small_GlisterAct_SetFunction(object):
 
     # Same as before i.e full batch case! No use of dataloaders here!
     # Everything is abstracted away in eval call
-    def naive_greedy_max(self, budget, x_trn, y_trn, theta_init):
+    def naive_greedy_max(self, x_trn, y_trn, budget, theta_init):
         x_trn = x_trn.to(self.device)
         y_trn = y_trn.to(self.device)
         start_time = time.time()
         self._compute_per_element_grads(x_trn, y_trn, theta_init)
         end_time = time.time()
-        print("Per Element gradient computation time is: ", end_time - start_time)
+        #print("Per Element gradient computation time is: ", end_time - start_time)
         start_time = time.time()
         self._update_grads_val(theta_init, first_init=True)
         end_time = time.time()
-        print("Updated validation set gradient computation time is: ", end_time - start_time)
+        #print("Updated validation set gradient computation time is: ", end_time - start_time)
         # Dont need the trainloader here!! Same as full batch version!
         self.numSelected = 0
         grads_currX = []  # basically stores grads_X for the current greedy set X
@@ -106,10 +106,10 @@ class Small_GlisterAct_SetFunction(object):
                 grads_currX = self.grads_per_elem[bestId]  # Making it a list so that is mutable!
             # Update the grads_val_current using current greedySet grads
             self._update_grads_val(theta_init, grads_currX)
-            if (self.numSelected - 1) % 1000 == 0:
-                # Printing bestGain and Selection time for 1 element.
-                print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
-        print("Naive greedy total time:", time.time() - t_ng_start)
+        #    if (self.numSelected - 1) % 1000 == 0:
+        #        # Printing bestGain and Selection time for 1 element.
+        #        print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
+        #print("Naive greedy total time:", time.time() - t_ng_start)
         return list(greedySet)
 
 
@@ -139,7 +139,7 @@ class Small_GlisterAct_SetFunction_Closed(object):
             one_hot_label.scatter_(1, y_trn.view(-1, 1), 1)
             grads = scores - one_hot_label
         torch.cuda.empty_cache()
-        print("Per Element Gradient Computation is Completed")
+        #print("Per Element Gradient Computation is Completed")
         self.grads_per_elem = grads
 
     def _update_grads_val(self, theta_init, grads_currX=None, first_init=False):
@@ -176,17 +176,17 @@ class Small_GlisterAct_SetFunction_Closed(object):
 
     # Same as before i.e full batch case! No use of dataloaders here!
     # Everything is abstracted away in eval call
-    def naive_greedy_max(self, budget, x_trn, y_trn, theta_init):
+    def naive_greedy_max(self, x_trn, y_trn, budget, theta_init):
         x_trn = x_trn.to(self.device)
         y_trn = y_trn.to(self.device)
         start_time = time.time()
         self._compute_per_element_grads(x_trn, y_trn, theta_init)
         end_time = time.time()
-        print("Per Element gradient computation time is: ", end_time - start_time)
+        #print("Per Element gradient computation time is: ", end_time - start_time)
         start_time = time.time()
         self._update_grads_val(theta_init, first_init=True)
         end_time = time.time()
-        print("Updated validation set gradient computation time is: ", end_time - start_time)
+        #print("Updated validation set gradient computation time is: ", end_time - start_time)
         # Dont need the trainloader here!! Same as full batch version!
         self.numSelected = 0
         grads_currX = []  # basically stores grads_X for the current greedy set X
@@ -213,10 +213,10 @@ class Small_GlisterAct_SetFunction_Closed(object):
                 grads_currX = self.grads_per_elem[bestId]  # Making it a list so that is mutable!
             # Update the grads_val_current using current greedySet grads
             self._update_grads_val(theta_init, grads_currX=grads_currX)
-            if (self.numSelected - 1) % 1000 == 0:
-                # Printing bestGain and Selection time for 1 element.
-                print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
-        print("Naive greedy total time:", time.time() - t_ng_start)
+        #    if (self.numSelected - 1) % 1000 == 0:
+        #        # Printing bestGain and Selection time for 1 element.
+        #        print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
+        #print("Naive greedy total time:", time.time() - t_ng_start)
         return list(greedySet)
 
 
@@ -252,7 +252,7 @@ class Small_GlisterAct_Linear_SetFunction(object):
             for j in range(self.num_classes):
                 l1_grads[i][(j * embDim): ((j + 1) * embDim)] = l0_grads[i, j] * l1[i]
         torch.cuda.empty_cache()
-        print("Per Element Gradient Computation is Completed")
+        #print("Per Element Gradient Computation is Completed")
         self.grads_per_elem = torch.cat((l0_grads, l1_grads), dim=1)
 
     def _update_grads_val(self, theta_init, grads_currX=None, first_init=False):
@@ -307,17 +307,17 @@ class Small_GlisterAct_Linear_SetFunction(object):
 
     # Same as before i.e full batch case! No use of dataloaders here!
     # Everything is abstracted away in eval call
-    def naive_greedy_max(self, budget, x_trn, y_trn, theta_init):
+    def naive_greedy_max(self, x_trn, y_trn, budget, theta_init):
         x_trn = x_trn.to(self.device)
         y_trn = y_trn.to(self.device)
         start_time = time.time()
         self._compute_per_element_grads(x_trn, y_trn, theta_init)
         end_time = time.time()
-        print("Per Element gradient computation time is: ", end_time - start_time)
+        #print("Per Element gradient computation time is: ", end_time - start_time)
         start_time = time.time()
         self._update_grads_val(theta_init, first_init=True)
         end_time = time.time()
-        print("Updated validation set gradient computation time is: ", end_time - start_time)
+        #print("Updated validation set gradient computation time is: ", end_time - start_time)
         # Dont need the trainloader here!! Same as full batch version!
         self.numSelected = 0
         grads_currX = []  # basically stores grads_X for the current greedy set X
@@ -343,9 +343,9 @@ class Small_GlisterAct_Linear_SetFunction(object):
                 grads_currX = self.grads_per_elem[bestId].view(1, -1)  # Making it a list so that is mutable!
             # Update the grads_val_current using current greedySet grads
             self._update_grads_val(theta_init, grads_currX)
-            if (self.numSelected - 1) % 1000 == 0:
+            #if (self.numSelected - 1) % 1000 == 0:
                 # Printing bestGain and Selection time for 1 element.
-                print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
+            #   print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
         print("Naive greedy total time:", time.time() - t_ng_start)
         return list(greedySet)
 
@@ -378,11 +378,11 @@ class Small_GlisterAct_Linear_SetFunction_Closed(object):
         outputs = tmp_tensor
         l0_grads = data - outputs
         # l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
-        for i in range(self.x_trn.shape[0]):
+        for i in range(x_trn.shape[0]):
             for j in range(self.num_classes):
                 l1_grads[i][(j * embDim): ((j + 1) * embDim)] = l0_grads[i, j] * l1[i]
         torch.cuda.empty_cache()
-        print("Per Element Gradient Computation is Completed")
+        #print("Per Element Gradient Computation is Completed")
         self.grads_per_elem = torch.cat((l0_grads, l1_grads), dim=1)
 
     def _update_grads_val(self, theta_init, grads_currX=None, first_init=False):
@@ -434,17 +434,17 @@ class Small_GlisterAct_Linear_SetFunction_Closed(object):
 
     # Same as before i.e full batch case! No use of dataloaders here!
     # Everything is abstracted away in eval call
-    def naive_greedy_max(self, budget, x_trn, y_trn, theta_init):
+    def naive_greedy_max(self, x_trn, y_trn, budget, theta_init):
         start_time = time.time()
         x_trn = x_trn.to(self.device)
         y_trn = y_trn.to(self.device)
-        self._compute_per_element_grads(theta_init)
+        self._compute_per_element_grads(x_trn, y_trn, theta_init)
         end_time = time.time()
-        print("Per Element gradient computation time is: ", end_time - start_time)
+        #print("Per Element gradient computation time is: ", end_time - start_time)
         start_time = time.time()
         self._update_grads_val(theta_init, first_init=True)
         end_time = time.time()
-        print("Updated validation set gradient computation time is: ", end_time - start_time)
+        #print("Updated validation set gradient computation time is: ", end_time - start_time)
         # Dont need the trainloader here!! Same as full batch version!
         self.numSelected = 0
         grads_currX = []  # basically stores grads_X for the current greedy set X
@@ -470,10 +470,10 @@ class Small_GlisterAct_Linear_SetFunction_Closed(object):
                 grads_currX = self.grads_per_elem[bestId].view(1, -1)  # Making it a list so that is mutable!
             # Update the grads_val_current using current greedySet grads
             self._update_grads_val(theta_init, grads_currX)
-            if (self.numSelected - 1)%1000 == 0:
+            #if (self.numSelected - 1)%1000 == 0:
                 # Printing bestGain and Selection time for 1 element.
-                print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
-        print("Naive greedy total time:", time.time() - t_ng_start)
+                #print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
+        #print("Naive greedy total time:", time.time() - t_ng_start)
         return list(greedySet)
 
 

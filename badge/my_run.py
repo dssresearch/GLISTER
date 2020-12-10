@@ -2,15 +2,15 @@ import numpy as np
 #from dataset import get_dataset, get_handler
 import torch.nn.functional as F
 from torch import nn
-from torchvision import transforms
+#from torchvision import transforms
 import torch
 from badge.query_strategies.badge_sampling import BadgeSampling
-from sklearn.model_selection import train_test_split
-import resnet
-from torch.utils.data import random_split, SequentialSampler, BatchSampler, RandomSampler
-from torch.utils.data.sampler import SubsetRandomSampler
+#from sklearn.model_selection import train_test_split
+#import resnet
+#from torch.utils.data import random_split, SequentialSampler, BatchSampler, RandomSampler
+#from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import Dataset
-from torchvision import datasets
+#from torchvision import datasets
 from PIL import Image
 
 import sys
