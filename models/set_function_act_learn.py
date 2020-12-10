@@ -7,9 +7,7 @@ from queue import PriorityQueue
 
 class SetFunctionTaylor(object):
     
-    def __init__(self, X_val, Y_val, model, loss_criterion, loss_nored, eta,device,num_classes): 
-
-        
+    def __init__(self, X_val, Y_val, model, loss_criterion, loss_nored, eta,device,num_classes):
         self.x_val = X_val
         self.y_val = Y_val
         
@@ -17,7 +15,6 @@ class SetFunctionTaylor(object):
         self.loss = loss_criterion # For validation loss
         self.loss_nored = loss_nored # Make sure it has reduction='none' instead of default
         self.eta = eta # step size for the one step gradient update
-        
         self.grads_per_elem = None
         self.grads_val_curr = None
         self.device = device
@@ -29,19 +26,14 @@ class SetFunctionTaylor(object):
         self.model.zero_grad()
         scores = self.model(x_trn)
         losses = self.loss_nored(scores, y_trn)
-        
-        self.N_trn = y_trn.shape[0]   
-
-        
+        self.N_trn = y_trn.shape[0]
         inputs = x_trn
         targets = y_trn
-        
         with torch.no_grad():
             data = F.softmax(self.model(inputs), dim=1)
         tmp_tensor = torch.zeros(len(inputs), self.num_classes).to(self.device)
         tmp_tensor.scatter_(1, targets.view(-1,1), 1)
         outputs = tmp_tensor
-        
         grads_vec = data - outputs
         torch.cuda.empty_cache()
         print("Per Element Gradient Computation is Completed")
