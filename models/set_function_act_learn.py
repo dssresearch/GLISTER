@@ -554,7 +554,8 @@ class Small_GlisterAct_Linear_SetFunction_Closed(object):
                 embDim = self.model.get_embedding_dim()
                 out = torch.zeros(self.init_out.shape[0], self.num_classes).to(self.device)
                 for j in range(self.num_classes):
-                    out[:, j] = self.init_out[:, j] - (1 * self.eta * (torch.matmul(self.init_l1, grads_currX[0][(j*embDim)+self.num_classes:((j+1)*embDim)+self.num_classes].view(-1, 1)) + grads_currX[0][j])).view(-1)
+                    out[:, j] = self.init_out[:, j] - (1 * self.eta * (torch.matmul(self.init_l1, grads_currX[0][(j*embDim) +
+                                self.num_classes:((j+1)*embDim)+self.num_classes].view(-1, 1)) + grads_currX[0][j])).view(-1)
                 scores = F.softmax(out, dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
@@ -719,7 +720,6 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes * embDim).to(self.device)
                 l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
                 l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
         self.grads_val_curr = torch.cat((l0_grads, l1_grads), dim=1).mean(dim=0).view(-1, 1)
@@ -728,7 +728,7 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
         grads_val = self.grads_val_curr
         with torch.no_grad():
             if len(greedySet) > 0:
-                gains = torch.matmul(grads, grads_val) - self.sim_mat[subset][:, greedySet].sum(1).view(-1, 1)
+                gains = torch.matmul(grads, grads_val) - (10 * self.sim_mat[subset][:, greedySet].sum(1).view(-1, 1))
             else:
                 gains = torch.matmul(grads, grads_val)
         return gains
