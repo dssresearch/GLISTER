@@ -4,3 +4,4 @@ data/
 backup/
 run_data/
 *__pycache__*
+results

@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 from models.simpleNN_net import * #ThreeLayerNet
 from models.logistic_regression import LogisticRegNet
 from models.set_function_act_learn import SetFunctionFacLoc, SetFunctionTaylor, SetFunctionBatch,\
-    Small_GlisterAct_Linear_SetFunction_Closed_Vect #Small_GlisterAct_Linear_SetFunction_Closed
+    SDReg_GlisterActLinear_SetFunction_Closed_Vect #Small_GlisterAct_Linear_SetFunction_Closed
 from sklearn.model_selection import train_test_split
 #from utils.custom_dataset import CustomDataset_act, load_dataset_numpy, write_knndata
 #from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
@@ -215,14 +215,14 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
 
 
     elif func_name == 'Facloc Regularized':
-        setf_model = Small_GlisterAct_Linear_SetFunction_Closed_Vect(x_val1, y_val1, model, criterion,
+        setf_model = SDReg_GlisterActLinear_SetFunction_Closed_Vect(x_val1, y_val1, model, criterion,
                  criterion_nored, learning_rate, device, num_cls)
             #SetFunctionTaylor(x_val1, y_val1, model, criterion, criterion_nored, learning_rate, device,num_cls)
 
     else:
         #setf_model = SetFunctionTaylorDeep(train_loader_greedy, valid_loader, valid, model, 
         #        criterion, criterion_nored, learning_rate, device, N)
-        setf_model = Small_GlisterAct_Linear_SetFunction_Closed_Vect(x_val, y_val, model, criterion,
+        setf_model = SDReg_GlisterActLinear_SetFunction_Closed_Vect(x_val, y_val, model, criterion,
                  criterion_nored, learning_rate, device, num_cls)
             #SetFunctionTaylor(x_val, y_val, model, criterion, criterion_nored, learning_rate, device,num_cls)
 
@@ -550,7 +550,7 @@ plt.clf()
 ###### Validation loss with val = VAL #############
 plt.figure()
 plt.plot(x_axis, t_ua[plot_start_epoch:], 'b-', label='tay_v=val',marker='o')
-plt.plot(x_axis, kva[plot_start_epoch:], '#8c564b', label='FASS',marker='o')
+plt.plot(x_axis, kua[plot_start_epoch:], '#8c564b', label='FASS',marker='o')
 plt.plot(x_axis, rua[plot_start_epoch:], 'g-', label='random',marker='o')
 plt.plot(x_axis, fua[plot_start_epoch:], 'pink', label='FacLoc',marker='o')
 plt.plot(x_axis, rand_t_ua[plot_start_epoch:], 'k-', label='rand_reg_tay_v=val',marker='o')
@@ -641,10 +641,6 @@ logfile.close()
 with open(all_logs_dir+'/mod_one_step_subset_selected.txt', 'w') as log_file:
     print(mod_subset_idxs, file=log_file)'''
 
-subset_idxs = list(subset_idxs)
-with open(all_logs_dir+'/one_step_subset_selected.txt', 'w') as log_file:
-    print(subset_idxs, file=log_file)
-
 '''psubset_idxs = list(psubset_idxs)
 with open(all_logs_dir+'/one_step_proximal_subset_selected.txt', 'w') as log_file:
     print(psubset_idxs, file=log_file)
@@ -660,6 +656,10 @@ with open(all_logs_dir+'/taylor_logit_subset_selected.txt', 'w') as log_file:
 dsubset_idxs = list(dsubset_idxs)
 with open(all_logs_dir+'/taylor_logit_subset_selected.txt', 'w') as log_file:
     print(dsubset_idxs, file=log_file)'''
+
+'''subset_idxs = list(subset_idxs)
+with open(all_logs_dir+'/one_step_subset_selected.txt', 'w') as log_file:
+    print(subset_idxs, file=log_file)
 
 knn_subset_idx = list(knn_subset_idx)
 with open(all_logs_dir+'/fass_subset_selected.txt', 'w') as log_file:
@@ -683,4 +683,4 @@ with open(all_logs_dir+'/random_subset_selected.txt', 'w') as log_file:
 
 facloc_idxs = list(facloc_idxs)
 with open(all_logs_dir+'/facloc_subset_selected.txt', 'w') as log_file:
-    print(facloc_idxs, file=log_file)
+    print(facloc_idxs, file=log_file)'''

@@ -2,11 +2,12 @@ import subprocess
 
 #datadir = sys.argv[1]
 #data_name = sys.argv[2]
-datadir = "../data/"
+#datadir = "C:\\Users\\krish\\OneDrive - The University of Texas at Dallas\\Documents\\GitHub\\GLISTER\\data\\"
+datadir = "../Datasets/data/"
 fracs = [0.1, 0.2, 0.3, 0.4, 0.5]
 num_epochs = 200
 no_of_rounds = [10]  #
-datasets = ['dna', 'svmguide1', 'satimage', 'sklearn-digits']
+datasets = ['sklearn-digits', 'dna','satimage','svmguide1']
 feature = ['dss', 'classimb']
 
 for dset in datasets:
