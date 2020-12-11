@@ -3,11 +3,11 @@ import subprocess
 #datadir = sys.argv[1]
 #data_name = sys.argv[2]
 datadir = "../data/"
-fracs = [0.1, 0.2, 0.3, 0.4, 0.5]
+fracs = [0.1, 0.2, 0.3]# 0.4, 0.5]
 num_epochs = 200
 no_of_rounds = [10]  #
-datasets = ['dna', 'svmguide1', 'satimage', 'sklearn-digits']
-feature = ['dss', 'classimb']
+datasets = ['svmguide1', 'satimage', 'sklearn-digits', 'dna']
+feature = ['dss']
 
 for dset in datasets:
     for sel in no_of_rounds:
