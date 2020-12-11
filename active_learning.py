@@ -15,7 +15,8 @@ from matplotlib import pyplot as plt
 from models.simpleNN_net import * #ThreeLayerNet
 from models.logistic_regression import LogisticRegNet
 from models.set_function_act_learn import SetFunctionFacLoc, SetFunctionTaylor, SetFunctionBatch,\
-    SDReg_GlisterActLinear_SetFunction_Closed_Vect #Small_GlisterAct_Linear_SetFunction_Closed
+    SDReg_GlisterActLinear_SetFunction_Closed_Vect,Small_GlisterAct_Linear_SetFunction_Closed_Vect,\
+    FacReg_GlisterActLinear_SetFunction_Closed_Vect #Small_GlisterAct_Linear_SetFunction_Closed
 from sklearn.model_selection import train_test_split
 #from utils.custom_dataset import CustomDataset_act, load_dataset_numpy, write_knndata
 #from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
@@ -193,9 +194,9 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
 
     sub_idxs = start_rand_idxs
 
-    if func_name == 'Facloc Regularized':
+    '''if func_name == 'Facloc Regularized':
         x_val1 = torch.cat([x_val, x_trn[fac_loc_idx]], dim=0)
-        y_val1 = torch.cat([y_val, y_trn[fac_loc_idx]], dim=0)
+        y_val1 = torch.cat([y_val, y_trn[fac_loc_idx]], dim=0)'''
 
     criterion = nn.CrossEntropyLoss()
     criterion_nored = nn.CrossEntropyLoss(reduction='none')
@@ -213,21 +214,27 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
 
         facility_loaction_warm_start = copy.deepcopy(sub_idxs)
 
-
     elif func_name == 'Facloc Regularized':
-        setf_model = SDReg_GlisterActLinear_SetFunction_Closed_Vect(x_val1, y_val1, model, criterion,
+        setf_model = FacReg_GlisterActLinear_SetFunction_Closed_Vect(x_val, y_val, model, criterion,
+                 criterion_nored, learning_rate, device, num_cls)
+            #SetFunctionTaylor(x_val1, y_val1, model, criterion, criterion_nored, learning_rate, device,num_cls)
+
+    elif func_name == 'With Diversity':
+        setf_model = SDReg_GlisterActLinear_SetFunction_Closed_Vect(x_val, y_val, model, criterion,
                  criterion_nored, learning_rate, device, num_cls)
             #SetFunctionTaylor(x_val1, y_val1, model, criterion, criterion_nored, learning_rate, device,num_cls)
 
     else:
         #setf_model = SetFunctionTaylorDeep(train_loader_greedy, valid_loader, valid, model, 
         #        criterion, criterion_nored, learning_rate, device, N)
-        setf_model = SDReg_GlisterActLinear_SetFunction_Closed_Vect(x_val, y_val, model, criterion,
+        setf_model = Small_GlisterAct_Linear_SetFunction_Closed_Vect(x_val, y_val, model, criterion,
                  criterion_nored, learning_rate, device, num_cls)
             #SetFunctionTaylor(x_val, y_val, model, criterion, criterion_nored, learning_rate, device,num_cls)
 
         #setf_model = SetFunctionTaylorDeep_ReLoss_Mean(x_trn, y_trn, train_batch_size_for_greedy, x_val, y_val, valid, model, 
         #        criterion, criterion_nored, learning_rate, device, N) 
+
+     
 
     remainList = set(list(range(N)))
     sub_idxs = list(sub_idxs)
@@ -239,6 +246,8 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
         print("Starting Online OneStep Run without taylor!")
     elif func_name == 'Facloc Regularized':
         print("Starting Facility Location Regularized Online OneStep Run with taylor!")
+    elif func_name == 'With Diversity':
+        print("Starting Diversity based Online OneStep Run with taylor!")
     elif func_name == 'Random Greedy':
         print("Starting Randomized Greedy Online OneStep Run with taylor!")
     elif func_name == 'Facility Location':
@@ -476,6 +485,8 @@ bva, bta,bua, badge_subset_idx = return_accuracies(facility_loaction_warm_start 
 rva, rta,rua, random_subset_idx= active_learning_taylor('Random',facility_loaction_warm_start )
 # Online algo run
 t_va, t_ta, t_ua, subset_idxs = active_learning_taylor('Taylor Online',facility_loaction_warm_start , no_points, True)
+# Online with diversity algo run
+dt_va, dt_ta, dt_ua, d_subset_idxs = active_learning_taylor('With Diversity',facility_loaction_warm_start , no_points, True)
 #Facility Location OneStep Runs
 facloc_reg_t_va, facloc_reg_t_ta, facloc_reg_t_ua, facloc_reg_subset_idxs = active_learning_taylor\
 ('Facloc Regularized',facility_loaction_warm_start , no_points, True,facloc_idxs)
@@ -578,7 +589,7 @@ print(exp_name, str(exp_start_time), file=logfile)
 print(data_name,":Budget = ", fraction, file=logfile)
 
 methods=["One Step Taylor",'Fac Loc Reg One Step','Rand Reg One Step','Facility Location','FASS',\
-'Random',"BADGE"] #,"Full One Step" #'One step Perturbation'
+'Random',"BADGE","Diver One Step"] #,"Full One Step" #'One step Perturbation'
 val_acc =[t_va,facloc_reg_t_va,rand_t_va,fva,kva,rva,bva] #,ft_va
 tst_acc =[t_ta,facloc_reg_t_ta,rand_t_ta,fta,kta,rta,bta] #,ft_ta
 unlabel_acc =[t_ua,facloc_reg_t_ua,rand_t_ua,fua,kua,rua,bua] #,ft_ua
