@@ -4,13 +4,13 @@ import sys
 #datadir = sys.argv[1]
 #data_name = sys.argv[2]
 datadir = '../data/'
-fracs =[0.1]
-num_epochs = 3
-select_every = [2]#,35,50]
+fracs =[0.1, 0.3, 0.5]
+num_epochs = 300
+select_every = [20]#,35,50]
 warm_method = [0]   # 0 = online, 1 = onestep warmstart
 num_runs = 10
 feature = ['dss']
-datasets = ['mnist']
+datasets = ['cifar10']
 
 for dset in datasets:
     for sel in select_every:

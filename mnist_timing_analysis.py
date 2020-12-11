@@ -10,15 +10,12 @@ from matplotlib import pyplot as plt
 from models.simpleNN_net import *  # ThreeLayerNet
 from torch.utils.data import random_split, SequentialSampler, BatchSampler, RandomSampler
 from models.set_function_all import SetFunctionFacLoc, SetFunctionBatch  # as SetFunction #SetFunctionCompare
-from models.set_function_grad_computation_taylor import NonDeepSetFunctionLoader_2 as SetFunctionTaylor
+from models.set_function_grad_computation_taylor import NonDeepSetRmodularFunction as SetFunctionTaylor
 from models.set_function_craig import PerClassNonDeepSetFunction as CRAIG
 from models.set_function_ideas import SetFunctionTaylorDeep_ReLoss_Mean
 from sklearn.model_selection import train_test_split
-from utils.custom_dataset import load_dataset_numpy, write_knndata
-from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old
+from utils.custom_dataset import load_dataset_custom, load_mnist_cifar
 import math
-from utils.data_utils import load_dataset_pytorch
-
 
 def train_model_craig(start_rand_idxs, bud, convex=True, every=False):
     torch.manual_seed(42)
@@ -26,21 +23,17 @@ def train_model_craig(start_rand_idxs, bud, convex=True, every=False):
     # model = LogisticRegNet(M, num_cls)
     model = TwoLayerNet(M, num_cls, 100)
     # model = ThreeLayerNet(M, num_cls, 5, 5)
-    if torch.cuda.device_count() > 1:
-        print("Using:", torch.cuda.device_count(), "GPUs!")
-        model = nn.DataParallel(model)
-        cudnn.benchmark = True
     model = model.to(device)
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
     criterion_nored = nn.CrossEntropyLoss(reduction="none")
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     print("Starting CRAIG Algorithm!")
-    eta= 0.01
+    eta = 0.01
     timing = np.zeros(num_epochs)
     val_acc = np.zeros(num_epochs)
     tst_acc = np.zeros(num_epochs)
-    setf = CRAIG(device, x_trn, y_trn, model, N,  1000, False)
+    setf = CRAIG(device, x_trn, y_trn, model, N, 1000, False)
     cached_state_dict = copy.deepcopy(model.state_dict())
     clone_dict = copy.deepcopy(model.state_dict())
     idxs, gammas = setf.lazy_greedy_max(bud, clone_dict)
@@ -118,21 +111,17 @@ def train_model_craig(start_rand_idxs, bud, convex=True, every=False):
     return val_acc, tst_acc, time_list
 
 
-def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fac_loc_idx=None):
+def train_model_taylor(func_name, r, start_rand_idxs=None, bud=None, valid=True, fac_loc_idx=None):
     torch.manual_seed(42)
     np.random.seed(42)
     model = TwoLayerNet(M, num_cls, 100)
-    if torch.cuda.device_count() > 1:
-        print("Using:", torch.cuda.device_count(), "GPUs!")
-        model = nn.DataParallel(model)
-        cudnn.benchmark = True
     model = model.to(device)
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
     criterion_nored = nn.CrossEntropyLoss(reduction='none')
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     setf_model = SetFunctionTaylor(trainset, x_val, y_val, model, criterion,
-                         criterion_nored, learning_rate, device, num_cls, 1000)
+                                   criterion_nored, learning_rate, device, num_cls, 1000)
 
     if func_name == 'Taylor Online':
         print("Starting Online OneStep Run with taylor on loss!")
@@ -179,10 +168,6 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
             tst_total = y_tst.size(0)
             tst_accu = 100 * tst_correct / tst_total
 
-        timing[i] = time.process_time() - start_time
-        val_acc[i] = val_accu
-        tst_acc[i] = tst_accu
-
         if i % print_every == 0:  # Print Training and Validation Loss
             print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss:', loss.item(), full_trn_loss.item(), val_loss.item())
 
@@ -191,10 +176,13 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
             # val_in, val_t = x_val.to(device), y_val.to(device)  # Transfer them to device
             cached_state_dict = copy.deepcopy(model.state_dict())
             clone_dict = copy.deepcopy(model.state_dict())
-            #t_ng_start = time.time()
-            new_idxs = setf_model.naive_greedy_max(bud, clone_dict)  # , grads_idxs
+            # t_ng_start = time.time()
+            new_idxs = setf_model.naive_greedy_max(bud, r, clone_dict)  # , grads_idxs
             idxs = new_idxs  # update the current set
             model.load_state_dict(cached_state_dict)
+        timing[i] = time.process_time() - start_time
+        val_acc[i] = val_accu
+        tst_acc[i] = tst_accu
     time_list = timing
     print("One Step Training set", file=logfile)
     print('---------------------------------------------------------------------', file=logfile)
@@ -223,14 +211,10 @@ def train_model_mod_taylor(start_rand_idxs, bud, valid):
     # model = LogisticRegNet(M, num_cls)
     model = TwoLayerNet(M, num_cls, 100)
     # model = ThreeLayerNet(M, num_cls, 5, 5)
-    if torch.cuda.device_count() > 1:
-        print("Using:", torch.cuda.device_count(), "GPUs!")
-        model = nn.DataParallel(model)
-        cudnn.benchmark = True
     model = model.to(device)
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     print("Starting Online OneStep Run after optimization with taylor!")
 
     timing = np.zeros(num_epochs)
@@ -304,7 +288,7 @@ print("Using Device:", device)
 
 datadir = './'
 data_name = 'mnist'
-fraction = 0.1
+fraction = 0.3
 num_epochs = 300
 select_every = 20
 feature = 'DSS'
@@ -312,29 +296,19 @@ warm_method = 0  # whether to use warmstart-onestep (1) or online (0)
 num_runs = 1  # number of random runs
 learning_rate = 0.05
 
-all_logs_dir = data_name + '/' + str(fraction) + '/' + str(select_every)
-print(all_logs_dir)
-subprocess.run(["mkdir", "-p", all_logs_dir])
-path_logfile = os.path.join(all_logs_dir, data_name + '.txt')
-logfile = open(path_logfile, 'w')
-exp_name = data_name + '_fraction:' + str(fraction) + '_epochs:' + str(num_epochs) + \
-           '_selEvery:' + str(select_every) + '_variant' + str(warm_method) + '_runs' + str(num_runs)
-print(exp_name)
-
 if data_name in ['dna', 'sklearn-digits', 'satimage', 'svmguide1', 'letter', 'shuttle', 'ijcnn1', 'sensorless',
                  'connect_4', 'sensit_seismic', 'usps']:
-    fullset, valset, testset, num_cls = load_dataset_numpy_old(datadir, data_name, feature=feature)
-elif data_name in ['mnist', "fashion-mnist"]:
-    fullset, valset, testset, num_cls = load_dataset_pytorch(datadir, data_name, feature)
+    fullset, valset, testset, data_dims, num_cls = load_dataset_custom(datadir, data_name, feature=feature, isnumpy=True)
+elif data_name in ['mnist', "fashion-mnist", 'cifar10']:
+    fullset, valset, testset, num_cls = load_mnist_cifar(datadir, data_name, feature=feature)
     validation_set_fraction = 0.1
     num_fulltrn = len(fullset)
     num_val = int(num_fulltrn * validation_set_fraction)
     num_trn = num_fulltrn - num_val
     trainset, validset = random_split(fullset, [num_trn, num_val])
-else:
-    fullset, valset, testset, num_cls = load_dataset_numpy(datadir, data_name, feature=feature)
+
 cnt = 0
-batch_wise_indices =list(BatchSampler(SequentialSampler(trainset), 1000, drop_last=False))
+batch_wise_indices = list(BatchSampler(SequentialSampler(trainset), 1000, drop_last=False))
 for batch_idx in batch_wise_indices:
     inputs = torch.cat([trainset[x][0].view(1, -1) for x in batch_idx],
                        dim=0).type(torch.float)
@@ -347,7 +321,7 @@ for batch_idx in batch_wise_indices:
         x_trn = torch.cat([x_trn, inputs], dim=0)
         y_trn = torch.cat([y_trn, targets], dim=0)
         cnt = cnt + 1
-batch_wise_indices =list(BatchSampler(SequentialSampler(valset), 1000, drop_last=False))
+batch_wise_indices = list(BatchSampler(SequentialSampler(valset), 1000, drop_last=False))
 for batch_idx in batch_wise_indices:
     inputs = torch.cat([valset[x][0].view(1, -1) for x in batch_idx],
                        dim=0).type(torch.float)
@@ -360,8 +334,8 @@ for batch_idx in batch_wise_indices:
         x_val = torch.cat([x_trn, inputs], dim=0)
         y_val = torch.cat([y_trn, targets], dim=0)
         cnt = cnt + 1
-batch_wise_indices =list(BatchSampler(SequentialSampler(testset), 1000, drop_last=False))
-#x_trn, y_trn = fullset.data, fullset.targets
+batch_wise_indices = list(BatchSampler(SequentialSampler(testset), 1000, drop_last=False))
+# x_trn, y_trn = fullset.data, fullset.targets
 for batch_idx in batch_wise_indices:
     inputs = torch.cat([testset[x][0].view(1, -1) for x in batch_idx],
                        dim=0).type(torch.float)
@@ -375,7 +349,7 @@ for batch_idx in batch_wise_indices:
         y_tst = torch.cat([y_trn, targets], dim=0)
         cnt = cnt + 1
 
-#x_tst, y_tst = testset.data, testset.targets
+# x_tst, y_tst = testset.data, testset.targets
 
 x_trn = x_trn.view(x_trn.shape[0], -1)
 x_val = x_val.view(x_val.shape[0], -1)
@@ -421,49 +395,75 @@ for item in range(math.ceil(len(x_trn) / train_batch_size)):
 start_idxs = np.random.choice(N, size=bud, replace=False)
 random_subset_idx = [x for x in start_idxs]
 
-
+R = [bud]
 # CRAIG Run
-print(time.time())
-craig_valacc, craig_tstacc, craig_timing = train_model_craig(start_idxs, bud, False, False)
-print(time.time())
+# print(time.time())
+# craig_valacc, craig_tstacc, craig_timing = train_model_craig(start_idxs, bud, False, False)
+# print(time.time())
+for r in R:
+    all_logs_dir = data_name + '/adam/' + str(fraction) + '/' + str(r) + '/' + str(select_every)
+    print(all_logs_dir)
+    subprocess.run(["mkdir", "-p", all_logs_dir])
+    path_logfile = os.path.join(all_logs_dir, data_name + 'craig' + '.txt')
+    logfile = open(path_logfile, 'w')
+    exp_name = data_name + '_fraction:' + str(fraction) + '_epochs:' + str(num_epochs) + \
+               '_selEvery:' + str(select_every) + '_variant' + str(warm_method) + '_runs' + str(num_runs)
+    print(exp_name)
+    # Online algo run
+    craig_valacc, craig_tstacc, craig_timing = train_model_craig(start_idxs, bud, False, False)
 
-# Online algo run
-print(time.time())
-t_val_valacc, t_val_tstacc, t_val_timing = train_model_taylor('Taylor Online', start_idxs, bud, True)
-print(time.time())
+    print(time.time())
+    t_val_valacc, t_val_tstacc, t_val_timing = train_model_taylor('Taylor Online', r, start_idxs, bud, True)
+    print(time.time())
 
-#Full Data Training
-print(time.time())
-mod_t_valacc, mod_t_tstacc, mod_t_timing = train_model_mod_taylor(start_idxs, bud, True)
-print(time.time())
-###### Test accuray #############
+    #Full Data Training
+    print(time.time())
+    mod_t_valacc, mod_t_tstacc, mod_t_timing = train_model_mod_taylor(start_idxs, bud, True)
+    print(time.time())
 
-plt.figure()
-plt.plot(craig_timing, craig_tstacc, 'g-', label='CRAIG')
-plt.plot(mod_t_timing, mod_t_tstacc, 'orange', label='full training')
-plt.plot(t_val_timing, t_val_tstacc, 'b-', label='GLISTER')
+    mod_cumulative_timing = [0 for x in mod_t_timing]
+    for i in range(len(mod_cumulative_timing)):
+        mod_cumulative_timing[i] = np.array(mod_t_timing)[0:i+1].sum()
+    mod_t_timing = mod_cumulative_timing
 
-plt.legend()
-plt.xlabel('Time')
-plt.ylabel('Test accuracy')
-plt.title('Test Accuracy vs Time ' + data_name + '_' + str(fraction))
-plt_file = path_logfile + '_' + str(fraction) + 'tst_accuracy_v=VAL.png'
-plt.savefig(plt_file)
-plt.clf()
+    t_val_cumulative_timing = [0 for x in t_val_timing]
+    for i in range(len(t_val_timing)):
+        t_val_cumulative_timing[i] = np.array(t_val_timing)[0:i+1].sum()
+    t_val_timing = t_val_cumulative_timing
 
-###### Validation #############
+    ###### Test accuray #############
 
-plt.figure()
-plt.plot(craig_timing, craig_valacc, 'g-', label='CRAIG')
-plt.plot(mod_t_timing, mod_t_valacc, 'orange', label='full training')
-plt.plot(t_val_timing, t_val_valacc, 'b-', label='GLISTER')
+    plt.figure()
+    #plt.plot(craig_timing, craig_tstacc, 'g-', label='CRAIG')
+    plt.plot(mod_t_timing, mod_t_tstacc, 'orange', label='full training')
+    plt.plot(t_val_timing, t_val_tstacc, 'b-', label='GLISTER')
 
-plt.legend()
-plt.xlabel('Time')
-plt.ylabel('Validation accuracy')
-plt.title('Validation Accuracy vs Time ' + data_name + '_' + str(fraction))
-plt_file = path_logfile + '_' + str(fraction) + 'val_accuracy_v=VAL.png'
-plt.savefig(plt_file)
-plt.clf()
+    plt.legend()
+    plt.xlabel('Time')
+    plt.ylabel('Test accuracy')
+    plt.title('Test Accuracy vs Time ' + data_name + '_' + str(fraction))
+    plt_file = path_logfile + '_' + str(fraction) + 'tst_accuracy_v=VAL.png'
+    plt.savefig(plt_file)
+    plt.clf()
 
+    craig_cumulative_timing = [0 for x in craig_timing]
+    for i in range(len(craig_timing)):
+        craig_cumulative_timing[i] = np.array(craig_timing)[0:i+1].sum()
+    craig_timing = craig_cumulative_timing
+
+
+    ###### Validation #############
+
+    plt.figure()
+    plt.plot(craig_timing, craig_valacc, 'g-', label='CRAIG')
+    plt.plot(mod_t_timing, mod_t_valacc, 'orange', label='full training')
+    plt.plot(t_val_timing, t_val_valacc, 'b-', label='GLISTER')
+
+    plt.legend()
+    plt.xlabel('Time')
+    plt.ylabel('Validation accuracy')
+    plt.title('Validation Accuracy vs Time ' + data_name + '_' + str(fraction))
+    plt_file = path_logfile + '_' + str(fraction) + 'val_accuracy_v=VAL.png'
+    plt.savefig(plt_file)
+    plt.clf()
 

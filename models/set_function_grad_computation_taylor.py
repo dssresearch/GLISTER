@@ -479,7 +479,7 @@ class Small_GlisterSetFunction_Closed(object):
         return list(greedySet)
 
 
-class Small_Glister_RmodularFunction(object):
+class NonDeepSetRmodularFunction(object):
     def __init__(self, trainset, x_val, y_val, model, loss_criterion,
                  loss_nored, eta, device, num_classes, batch_size):
         self.trainset = trainset  # assume its a sequential loader.

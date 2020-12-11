@@ -185,8 +185,10 @@ def train_model_craig(start_rand_idxs, bud):
     np.random.seed(42)
     if data_name == 'mnist':
         model = MnistNet()
+        num_channels = 1
     elif data_name == 'cifar10':
         model = ResNet18(num_cls)
+        num_channels = 3
     model = model.to(device)
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
@@ -222,7 +224,7 @@ def train_model_craig(start_rand_idxs, bud):
         subtrn_correct = 0
         for batch_idx in batch_wise_indices:
             inputs = torch.cat(
-                [fullset[actual_idxs[x]][0].view(-1, 1, fullset[actual_idxs[x]][0].shape[1], fullset[actual_idxs[x]][0].shape[2]) for x in batch_idx],
+                [fullset[actual_idxs[x]][0].view(-1, num_channels, fullset[actual_idxs[x]][0].shape[1], fullset[actual_idxs[x]][0].shape[2]) for x in batch_idx],
                 dim=0).type(torch.float)
             targets = torch.tensor([fullset[actual_idxs[x]][1] for x in batch_idx])
             inputs, targets = inputs.to(device), targets.to(device, non_blocking=True) # targets can have non_blocking=True.
@@ -317,8 +319,10 @@ def random_greedy_train_model_online_taylor(start_rand_idxs, bud, lam):
     np.random.seed(42)
     if data_name == 'mnist':
         model = MnistNet()
+        num_channels = 1
     elif data_name == 'cifar10':
         model = ResNet18(num_cls)
+        num_channels = 3
     model = model.to(device)
     idxs = start_rand_idxs
     total_idxs = list(np.arange(len(y_trn)))
@@ -331,12 +335,10 @@ def random_greedy_train_model_online_taylor(start_rand_idxs, bud, lam):
     tst_acc = np.zeros(num_epochs)
     # cosine learning rate
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, math.ceil(len(idxs)/trn_batch_size) * num_epochs)
-    if data_name == 'mnist':
-        setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
-                             criterion_nored, learning_rate, device, 1, num_cls, 1000)
-    elif data_name == 'cifar10':
-        setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
-                                 criterion_nored, learning_rate, device, 3, num_cls, 1000)
+
+    setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
+                             criterion_nored, learning_rate, device, num_channels, num_cls, 1000)
+
     print("Starting Randomized Greedy Online OneStep Run with taylor!")
     substrn_losses = np.zeros(num_epochs)
     fulltrn_losses = np.zeros(num_epochs)
@@ -362,7 +364,7 @@ def random_greedy_train_model_online_taylor(start_rand_idxs, bud, lam):
         subtrn_correct = 0
         for batch_idx in batch_wise_indices:
             inputs = torch.cat(
-                [fullset[x][0].view(-1, 1, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
+                [fullset[x][0].view(-1, num_channels, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
                 dim=0).type(torch.float)
             targets = torch.tensor([fullset[x][1] for x in batch_idx])
             inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
@@ -453,8 +455,10 @@ def train_model_online(start_rand_idxs, bud):
     np.random.seed(42)
     if data_name == 'mnist':
         model = MnistNet()
+        num_channels = 1
     elif data_name == 'cifar10':
         model = ResNet18(num_cls)
+        num_channels = 3
     model = model.to(device)
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
@@ -466,12 +470,9 @@ def train_model_online(start_rand_idxs, bud):
     tst_acc = np.zeros(num_epochs)
     # cosine learning rate
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, math.ceil(len(idxs)/trn_batch_size) * num_epochs)
-    if data_name == 'mnist':
-        setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
-                             criterion_nored, learning_rate, device, 1, num_cls, 1000)
-    elif data_name == 'cifar10':
-        setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
-                                 criterion_nored, learning_rate, device, 3, num_cls, 1000)
+
+    setf_model = SetFunction(trainset, x_val, y_val, model, criterion,
+                             criterion_nored, learning_rate, device, num_channels, num_cls, 1000)
     print("Starting Greedy Online OneStep Run with taylor!")
     substrn_losses = np.zeros(num_epochs)
     fulltrn_losses = np.zeros(num_epochs)
@@ -501,7 +502,7 @@ def train_model_online(start_rand_idxs, bud):
 
         for batch_idx in batch_wise_indices:
             inputs = torch.cat(
-                [fullset[x][0].view(-1, 1, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
+                [fullset[x][0].view(-1, num_channels, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
                 dim=0).type(torch.float)
             targets = torch.tensor([fullset[x][1] for x in batch_idx])
             inputs, targets = inputs.to(device), targets.to(device, non_blocking=True) # targets can have non_blocking=True.
@@ -594,8 +595,10 @@ def facloc_reg_train_model_online_taylor(start_rand_idxs, facloc_idxs, bud, lam)
     np.random.seed(42)
     if data_name == 'mnist':
         model = MnistNet()
+        num_channels = 1
     elif data_name == 'cifar10':
         model = ResNet18(num_cls)
+        num_channels = 3
     val_plus_facloc_idxs = [trainset.indices[x] for x in facloc_idxs]
     val_plus_facloc_idxs.extend(validset.indices)
     cmb_set = torch.utils.data.Subset(fullset, val_plus_facloc_idxs)
@@ -620,12 +623,9 @@ def facloc_reg_train_model_online_taylor(start_rand_idxs, facloc_idxs, bud, lam)
     tst_acc = np.zeros(num_epochs)
     # cosine learning rate
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, math.ceil(len(idxs)/trn_batch_size) * num_epochs)
-    if data_name == 'mnist':
-        setf_model = WtSetFunction(trainset, x_cmb, y_cmb, len(facloc_idxs), lam, model, criterion,
-                             criterion_nored, learning_rate, device, 1, num_cls, 1000)
-    elif data_name == 'cifar10':
-        setf_model = WtSetFunction(trainset, x_cmb, y_cmb, len(facloc_idxs), lam, model, criterion,
-                                   criterion_nored, learning_rate, device, 3, num_cls, 1000)
+
+    setf_model = WtSetFunction(trainset, x_cmb, y_cmb, len(facloc_idxs), lam, model, criterion,
+                             criterion_nored, learning_rate, device, num_channels, num_cls, 1000)
 
     print("Starting Facloc regularized Greedy Online OneStep Run with taylor!")
     substrn_losses = np.zeros(num_epochs)
@@ -657,7 +657,7 @@ def facloc_reg_train_model_online_taylor(start_rand_idxs, facloc_idxs, bud, lam)
 
         for batch_idx in batch_wise_indices:
             inputs = torch.cat(
-                [fullset[x][0].view(-1, 1, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
+                [fullset[x][0].view(-1, num_channels, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
                 dim=0).type(torch.float)
             targets = torch.tensor([fullset[x][1] for x in batch_idx])
             inputs, targets = inputs.to(device), targets.to(device,
