@@ -199,7 +199,7 @@ class GlisterSetFunction_Closed(object):
         elif grads_currX is not None:
             # update params:
             with torch.no_grad():
-                scores = F.softmax(self.init_val_scores - ((self.eta/self.numSelected) * grads_currX).view(1, -1), dim=1)
+                scores = F.softmax(self.init_val_scores - ((self.eta) * grads_currX).view(1, -1), dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 grads = scores - one_hot_label
@@ -418,7 +418,7 @@ class Small_GlisterSetFunction_Closed(object):
         elif grads_currX is not None:
             # update params:
             with torch.no_grad():
-                scores = F.softmax(self.init_val_scores - ((self.eta/self.numSelected) * grads_currX).view(1, -1), dim=1)
+                scores = F.softmax(self.init_val_scores - ((self.eta) * grads_currX).view(1, -1), dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 grads = scores - one_hot_label
@@ -538,7 +538,7 @@ class NonDeepSetRmodularFunction(object):
         elif grads_currX is not None:
             # update params:
             with torch.no_grad():
-                scores = F.softmax(self.init_val_scores - ((self.eta/self.numSelected) * grads_currX).view(1, -1), dim=1)
+                scores = F.softmax(self.init_val_scores - ((self.eta) * grads_currX).view(1, -1), dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 grads = scores - one_hot_label
