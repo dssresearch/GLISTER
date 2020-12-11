@@ -92,6 +92,7 @@ x_trn, y_trn = x_trn.to(device), y_trn.to(device)
 x_val, y_val = x_val.to(device), y_val.to(device)
 
 train_batch_size_for_greedy = 800#1200 
+train_batch_size = 128
 
 def perform_knnsb_selection(datadir, dset_name,X,Y, budget, selUsing):
 
@@ -278,7 +279,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     model =  model.apply(weight_reset).cuda()
     #print(model.linear2.weight)
     for n in range(no_select):
-        loader_tr = DataLoader(CustomDataset_WithId(x_trn[sub_idxs], y_trn[sub_idxs], transform=None),batch_size=no_points)
+        loader_tr = DataLoader(CustomDataset_WithId(x_trn[sub_idxs], y_trn[sub_idxs], transform=None),batch_size=train_batch_size)
         model.train()
         for i in range(num_epochs):
             # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)

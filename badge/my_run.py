@@ -84,6 +84,8 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
     random.seed(42)
     torch.backends.cudnn.deterministic = True
 
+    train_batch_size = 128
+
     fullset, valset, testset, data_dims, num_cls = load_dataset_custom(datadir, data_name,feature=feature, isnumpy=True)
     
     x_trn, y_trn = fullset
@@ -96,7 +98,7 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
     
     args = {'transform':None,
             'n_epoch':epoch,
-            'loader_tr_args':{'batch_size': NUM_QUERY},
+            'loader_tr_args':{'batch_size': train_batch_size},
             'loader_te_args':{'batch_size': 1000},
             'optimizer_args':{'lr': learning_rate},
             'transformTest':None}
