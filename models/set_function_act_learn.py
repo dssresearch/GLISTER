@@ -650,7 +650,7 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
       return dist
 
     def _compute_similarity_kernel(self):
-        train_batch_size_for_greedy = 1200
+        train_batch_size_for_greedy = 600
         train_loader_greedy = []
         for item in range(math.ceil(len(self.grads_per_elem) / train_batch_size_for_greedy)):
             inputs = self.grads_per_elem[item * train_batch_size_for_greedy:(item + 1) * train_batch_size_for_greedy]
@@ -684,22 +684,9 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
         tmp_tensor.scatter_(1, y_trn.view(-1, 1), 1)
         outputs = tmp_tensor
         l0_grads = data - outputs
-        # l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
-        '''for i in range(x_trn.shape[0]):
-            for j in range(self.num_classes):
-                l1_grads[i][(j * embDim): ((j + 1) * embDim)] = l0_grads[i, j] * l1[i]'''
-
         l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
         l1_grads = l0_expand * l1.repeat(1, self.num_classes)
-
-        '''ind = torch.arange(0,embDim,device=self.device).repeat(x_trn.shape[0],1)
-        max_ind = ind + (y_trn*embDim)[:,None]
-
-        soft_max = -1*torch.repeat_interleave(data, l1.shape[1], dim=1) 
-        l1_grads = (l1.repeat(1,self.num_classes) * soft_max).scatter_add_(1, max_ind, l1)'''
-
         torch.cuda.empty_cache()
-        # print("Per Element Gradient Computation is Completed")
         self.grads_per_elem = torch.cat((l0_grads, l1_grads), dim=1)
 
     def _update_grads_val(self, theta_init, grads_currX=None, first_init=False):
@@ -714,27 +701,27 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
                 l0_grads = scores - one_hot_label
                 embDim = self.model.get_embedding_dim()
                 l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes * embDim).to(self.device)
-                #l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
-                for i in range(self.init_l1.shape[0]):
-                    for j in range(self.num_classes):
-                        l1_grads[i, (j * embDim):((j+1) * embDim)] = l0_grads[i, j] * self.init_l1[i]
+                l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
+                l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
+
         # populate the gradients in model params based on loss.
+
         elif grads_currX is not None:
             # update params:
             with torch.no_grad():
                 embDim = self.model.get_embedding_dim()
                 out = torch.zeros(self.init_out.shape[0], self.num_classes).to(self.device)
                 for j in range(self.num_classes):
-                    out[:, j] = self.init_out[:, j] - (1 * self.eta * (torch.matmul(self.init_l1, grads_currX[0][(j*embDim)+self.num_classes:((j+1)*embDim)+self.num_classes].view(-1, 1)) + grads_currX[0][j])).view(-1)
+                    out[:, j] = self.init_out[:, j] - (1 * self.eta * (torch.matmul(self.init_l1, grads_currX[0][(j * embDim) +
+                                self.num_classes:((j + 1) * embDim) + self.num_classes].view(-1, 1)) + grads_currX[0][j])).view(-1)
+
                 scores = F.softmax(out, dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
                 l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes * embDim).to(self.device)
-                # l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
-                for i in range(self.init_l1.shape[0]):
-                    for j in range(self.num_classes):
-                        l1_grads[i][(j * embDim):((j + 1) * embDim)] = l0_grads[i, j] * self.init_l1[i]
+                l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
+                l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
         self.grads_val_curr = torch.cat((l0_grads, l1_grads), dim=1).mean(dim=0).view(-1, 1)
 
     def eval_taylor_modular(self, grads, subset, greedySet):

@@ -6,7 +6,7 @@ datadir = "../data/"
 fracs = [0.1, 0.2, 0.3]# 0.4, 0.5]
 num_epochs = 200
 no_of_rounds = [10]  #
-datasets = ['svmguide1', 'satimage', 'sklearn-digits', 'dna']
+datasets = ['sklearn-digits', 'dna', 'svmguide1', 'satimage']
 feature = ['dss']
 
 for dset in datasets:
