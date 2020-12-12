@@ -945,7 +945,7 @@ class FacReg_GlisterActLinear_SetFunction_Closed_Vect(object):
       return dist 
 
     def _compute_similarity_kernel(self):
-        train_batch_size_for_greedy = 600
+        train_batch_size_for_greedy = 200
         train_loader_greedy = []
         for item in range(math.ceil(len(self.grads_per_elem) / train_batch_size_for_greedy)):
             inputs = self.grads_per_elem[item * train_batch_size_for_greedy:(item + 1) * train_batch_size_for_greedy]
