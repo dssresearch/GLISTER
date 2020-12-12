@@ -224,11 +224,11 @@ class GlisterSetFunction_Closed(object):
         start_time = time.time()
         self._compute_per_element_grads(theta_init)
         end_time = time.time()
-        print("Per Element gradient computation time is: ", end_time - start_time)
+        #print("Per Element gradient computation time is: ", end_time - start_time)
         start_time = time.time()
         self._update_grads_val(theta_init, first_init=True)
         end_time = time.time()
-        print("Updated validation set gradient computation time is: ", end_time - start_time)
+        #print("Updated validation set gradient computation time is: ", end_time - start_time)
         # Dont need the trainloader here!! Same as full batch version!
         self.numSelected = 0
         grads_currX = []  # basically stores grads_X for the current greedy set X
@@ -255,10 +255,10 @@ class GlisterSetFunction_Closed(object):
                 grads_currX = self.grads_per_elem[bestId]  # Making it a list so that is mutable!
             # Update the grads_val_current using current greedySet grads
             self._update_grads_val(theta_init, grads_currX=grads_currX)
-            if (self.numSelected - 1) % 1000 == 0:
+            #if (self.numSelected - 1) % 1000 == 0:
                 # Printing bestGain and Selection time for 1 element.
-                print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
-        print("Naive greedy total time:", time.time() - t_ng_start)
+            #    print("numSelected:", self.numSelected, "Time for 1:", time.time() - t_one_elem)
+        #print("Naive greedy total time:", time.time() - t_ng_start)
         return list(greedySet), grads_currX
 
 

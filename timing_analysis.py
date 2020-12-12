@@ -12,14 +12,15 @@ import torch.optim as optim
 from matplotlib import pyplot as plt
 from models.simpleNN_net import *  # ThreeLayerNet
 from models.logistic_regression import LogisticRegNet
-from models.set_function_all import SetFunctionFacLoc, SetFunctionTaylor, SetFunctionTaylorDeep, \
+from models.set_function_all import SetFunctionFacLoc, \
     SetFunctionBatch  # as SetFunction #SetFunctionCompare
+from torch.utils.data import random_split, SequentialSampler, BatchSampler, RandomSampler
+from models.set_function_grad_computation_taylor import Small_GlisterSetFunction_Closed as SetFunctionTaylor
 #from models.set_function_craig import SetFunction2 as CRAIG
 from models.set_function_craig import SetFunctionCRAIG_Super as CRAIG
 from models.set_function_ideas import SetFunctionTaylorDeep_ReLoss_Mean
 from sklearn.model_selection import train_test_split
-from utils.custom_dataset import load_dataset_numpy, write_knndata
-from custom_dataset_old import load_dataset_numpy as load_dataset_numpy_old, write_knndata as write_knndata_old
+from utils.custom_dataset import load_dataset_custom, load_mnist_cifar
 import math
 import random
 from torch.utils.data import TensorDataset, DataLoader
@@ -53,14 +54,10 @@ print(exp_name)
 #print(exp_name, str(exp_start_time), file=logfile)
 
 if data_name in ['dna','sklearn-digits','satimage','svmguide1','letter','shuttle','ijcnn1','sensorless','connect_4','sensit_seismic','usps']:
-    fullset, valset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
-    #write_knndata_old(datadir, data_name,feature=feature)
+    fullset, valset, testset, data_dims, num_cls = load_dataset_custom(datadir, data_name,feature=feature, isnumpy=True)
 elif data_name in ['mnist' , "fashion-mnist"]:
-    fullset, testset, num_cls = load_dataset_numpy_old(datadir, data_name,feature=feature)
-    #write_knndata_old(datadir, data_name,feature=feature)
-else:
-    fullset, valset, testset, num_cls = load_dataset_numpy(datadir, data_name,feature=feature)
-    #write_knndata(datadir, data_name,feature=feature)
+    fullset, valset, testset, num_cls = load_mnist_cifar(datadir, data_name,feature=feature)
+
 
 '''if data_name == 'mnist' or data_name == "fashion-mnist":
     x_trn, y_trn = fullset.data, fullset.targets
@@ -239,12 +236,12 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
         idxs = setf_model.lazy_greedy_max(bud, model)
 
     elif func_name == 'Facloc Regularized':
-        setf_model = SetFunctionTaylor(x_trn, y_trn, x_val1, y_val1, valid, model,
-                                       criterion, criterion_nored, learning_rate, device)
+        setf_model = SetFunctionTaylor(x_trn, y_trn, x_val1, y_val1, model,
+                                       criterion, criterion_nored, learning_rate, device, num_cls)
 
     else:
-        setf_model = SetFunctionTaylor(x_trn, y_trn, x_val, y_val, valid, model,
-                                       criterion, criterion_nored, learning_rate, device)
+        setf_model = SetFunctionTaylor(x_trn, y_trn, x_val, y_val, model,
+                                       criterion, criterion_nored, learning_rate, device, num_cls)
 
     if func_name == 'Taylor Online':
         print("Starting Online OneStep Run with taylor on loss!")
@@ -366,7 +363,7 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
     print("Validation Loss and Accuracy:", val_loss.item(), val_accu)
     print("Test Data Loss and Accuracy:", tst_loss.item(), tst_accu)
     print('-----------------------------------')
-    return val_acc, tst_acc, timing -exp_start_time_onestep
+    return val_acc, tst_acc, timing - exp_start_time_onestep
 
 
 def train_model_mod_taylor(start_rand_idxs, bud, valid):
@@ -383,15 +380,24 @@ def train_model_mod_taylor(start_rand_idxs, bud, valid):
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-    print("Starting Online OneStep Run after optimization with taylor!")
+    print("Starting Full Training!")
     
     timing = np.zeros(num_epochs)
     tst_acc = np.zeros(num_epochs)
     val_acc = np.zeros(num_epochs)
     # idxs = start_rand_idxs
-
     exp_start_time_full = time.time()
+    batch_wise_indices = list(BatchSampler(RandomSampler(x_trn), int(bud), drop_last=False))
     for i in range(num_epochs):
+        for batch_idx in batch_wise_indices:
+            inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
+            #inputs, targets = x_trn[batch_idx], y_trn[batch_idx]
+            optimizer.zero_grad()
+            scores = model(inputs)
+            loss = criterion(scores, targets)
+            loss.backward()
+            optimizer.step()
+
         # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
         inputs, targets = x_trn, y_trn
         optimizer.zero_grad()
@@ -434,7 +440,7 @@ def train_model_mod_taylor(start_rand_idxs, bud, valid):
     print("Test Data Loss and Accuracy:", tst_loss.item(), tst_accu)
     print('-----------------------------------')
 
-    return val_acc, tst_acc, timing -exp_start_time_full
+    return val_acc, tst_acc, timing - exp_start_time_full
 
 start_idxs = np.random.choice(N, size=bud, replace=False)
 random_subset_idx = [x for x in start_idxs]
@@ -443,9 +449,9 @@ random_subset_idx = [x for x in start_idxs]
 #knn_idxs_flag_val = perform_knnsb_selection(datadir, data_name, fraction, selUsing='val')
 
 # CRAIG Run
-print(time.time())
-craig_valacc, craig_tstacc, craig_timing = train_model_craig(start_idxs, bud, False,False)
-print(time.time())
+#print(time.time())
+#craig_valacc, craig_tstacc, craig_timing = train_model_craig(start_idxs, bud, False, False)
+#print(time.time())
 
 # Every epoch CRAIG Run
 #e_craig_valacc, e_craig_tstacc, e_craig_valloss, e_craig_tstloss, e_craig_substrn_losses, e_craig_fulltrn_losses, \
@@ -492,7 +498,7 @@ print(time.time())
 ###### Test accuray #############
 
 plt.figure()
-plt.plot(craig_timing, craig_tstacc,'g-' , label='CRAIG')
+#plt.plot(craig_timing, craig_tstacc,'g-' , label='CRAIG')
 plt.plot(mod_t_timing, mod_t_tstacc, 'orange', label='full training')
 plt.plot(t_val_timing, t_val_tstacc, 'b-', label='GLISTER')
 
@@ -508,7 +514,7 @@ plt.clf()
 ###### Validation #############
 
 plt.figure()
-plt.plot(craig_timing, craig_valacc,'g-' , label='CRAIG')
+#plt.plot(craig_timing, craig_valacc,'g-' , label='CRAIG')
 plt.plot(mod_t_timing, mod_t_valacc, 'orange', label='full training')
 plt.plot(t_val_timing, t_val_valacc, 'b-', label='GLISTER')
 
@@ -520,7 +526,7 @@ plt_file = path_logfile + '_' + str(fraction) + 'val_accuracy_v=VAL.png'
 plt.savefig(plt_file)
 plt.clf()
 
-
+"""
 print("CRAIG",file=logfile)
 print('---------------------------------------------------------------------',file=logfile)
 
@@ -537,7 +543,7 @@ for i in range(num_epochs):
 print(time,file=logfile)
 print(val,file=logfile)
 print(tst,file=logfile)
-
+"""
 print("GLISTER",file=logfile)
 print('---------------------------------------------------------------------',file=logfile)
 
