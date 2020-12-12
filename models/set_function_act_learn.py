@@ -727,12 +727,12 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
                 l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
         self.grads_val_curr = torch.cat((l0_grads, l1_grads), dim=1).mean(dim=0).view(-1, 1)
 
-    def eval_taylor_modular(self, grads, greedySet,subset=None):
+    def eval_taylor_modular(self, grads, greedySet,subset):
         grads_val = self.grads_val_curr
         with torch.no_grad():
             if len(greedySet) > 0:
                 #gains = torch.matmul(grads, grads_val) - 10*self.sim_mat[subset][:, greedySet].sum(1).view(-1, 1).to(self.device)
-                gains = torch.matmul(grads, grads_val) - 10*self.sim_mat[:, greedySet].sum(1).view(-1, 1).to(self.device)
+                gains = torch.matmul(grads, grads_val) - 10*self.sim_mat[subset][:, greedySet].sum(1).view(-1, 1).to(self.device)
             else:
                 gains = torch.matmul(grads, grads_val)
         return gains
@@ -770,7 +770,7 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
             '''subset_selected = list(np.random.choice(np.array(list(remainSet)), size=subset_size, replace=False))
             rem_grads = self.grads_per_elem[subset_selected]
             gains = self.eval_taylor_modular(rem_grads, greedySet, subset_selected)'''
-            gains = self.eval_taylor_modular(self.grads_per_elem[remainSet],greedySet)#rem_grads)
+            gains = self.eval_taylor_modular(self.grads_per_elem[remainSet],greedySet,remainSet)#rem_grads)
             # Update the greedy set and remaining set
             #bestId = subset_selected[torch.argmax(gains).item()]
             bestId = remainSet[torch.argmax(gains).item()]
