@@ -833,17 +833,19 @@ def load_mnist_cifar (datadir, dset_name,feature):
     
     elif dset_name == "cifar10":
         cifar_transform = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
-        cifar_val_transform = transforms.Compose([
+        cifar_tst_transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
         num_cls = 10
         fullset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=cifar_transform)
-        valset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=cifar_val_transform)
-        testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=True, transform=cifar_transform)
+        valset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=cifar_tst_transform)
+        testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=True, transform=cifar_tst_transform)
         if feature == 'classimb':
             samples_per_class = torch.zeros(num_cls)
             for i in range(num_cls):

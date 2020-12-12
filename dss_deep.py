@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 import time
-from time import process_time
+from time import time
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
@@ -206,7 +206,7 @@ def train_model_craig(start_rand_idxs, bud):
     fulltrn_losses = np.zeros(num_epochs)
     val_losses = np.zeros(num_epochs)
     for i in range(0, num_epochs):
-        start_time = process_time()
+        start_time = time()
         print("selEpoch: %d, Starting Selection:" % i, str(datetime.datetime.now()))
         if ((i) % select_every) == 0:
             cached_state_dict = copy.deepcopy(model.state_dict())
@@ -242,7 +242,7 @@ def train_model_craig(start_rand_idxs, bud):
             subtrn_correct += predicted.eq(targets).sum().item()
             subtrn_accu = 100 * subtrn_correct / subtrn_total
 
-        #timing[i] = process_time() - start_time
+        #timing[i] = time() - start_time
         val_loss = 0
         full_trn_loss = 0
         tst_loss = 0
@@ -287,7 +287,7 @@ def train_model_craig(start_rand_idxs, bud):
         substrn_losses[i] = subtrn_loss
         fulltrn_losses[i] = full_trn_loss
         val_losses[i] = val_loss
-        time_array[i] = process_time() - start_time
+        time_array[i] = time() - start_time
         val_acc[i] = val_accu
         tst_acc[i] = tst_accu
         if i % print_every == 0:  # Print Training and Validation Loss
@@ -344,7 +344,7 @@ def random_greedy_train_model_online_taylor(start_rand_idxs, bud, lam):
     fulltrn_losses = np.zeros(num_epochs)
     val_losses = np.zeros(num_epochs)
     for i in range(0, num_epochs):
-        start_time = process_time()
+        start_time = time()
 
         if ((i + 1) % select_every) == 0:
             cached_state_dict = copy.deepcopy(model.state_dict())
@@ -423,7 +423,7 @@ def random_greedy_train_model_online_taylor(start_rand_idxs, bud, lam):
         substrn_losses[i] = subtrn_loss
         fulltrn_losses[i] = full_trn_loss
         val_losses[i] = val_loss
-        time_array[i] = process_time() - start_time
+        time_array[i] = time() - start_time
         val_acc[i] = val_accu
         tst_acc[i] = tst_accu
         if i % print_every == 0:  # Print Training and Validation Loss
@@ -478,7 +478,7 @@ def train_model_online(start_rand_idxs, bud):
     fulltrn_losses = np.zeros(num_epochs)
     val_losses = np.zeros(num_epochs)
     for i in range(0, num_epochs):
-        start_time = process_time()
+        start_time = time()
         if ((i + 1) % select_every) == 0:
             cached_state_dict = copy.deepcopy(model.state_dict())
             clone_dict = copy.deepcopy(model.state_dict())
@@ -518,7 +518,7 @@ def train_model_online(start_rand_idxs, bud):
             subtrn_correct += predicted.eq(targets).sum().item()
             subtrn_accu = 100 * subtrn_correct / subtrn_total
 
-        # timing[i] = process_time() - start_time
+        # timing[i] = time() - start_time
         val_loss = 0
         full_trn_loss = 0
         tst_loss = 0
@@ -563,7 +563,7 @@ def train_model_online(start_rand_idxs, bud):
         substrn_losses[i] = subtrn_loss
         fulltrn_losses[i] = full_trn_loss
         val_losses[i] = val_loss
-        time_array[i] = process_time() - start_time
+        time_array[i] = time() - start_time
         val_acc[i] = val_accu
         tst_acc[i] = tst_accu
         if i % print_every == 0:  # Print Training and Validation Loss
@@ -635,7 +635,7 @@ def facloc_reg_train_model_online_taylor(start_rand_idxs, facloc_idxs, bud, lam)
                                                    sampler=SubsetRandomSampler(idxs), num_workers=1,
                                                    pin_memory=True)
     for i in range(0, num_epochs):
-        start_time = process_time()
+        start_time = time()
         if ((i + 1) % select_every) == 0:
             cached_state_dict = copy.deepcopy(model.state_dict())
             clone_dict = copy.deepcopy(model.state_dict())
@@ -674,7 +674,7 @@ def facloc_reg_train_model_online_taylor(start_rand_idxs, facloc_idxs, bud, lam)
             subtrn_correct += predicted.eq(targets).sum().item()
             subtrn_accu = 100 * subtrn_correct / subtrn_total
 
-        # timing[i] = process_time() - start_time
+        # timing[i] = time() - start_time
         val_loss = 0
         full_trn_loss = 0
         tst_loss = 0
@@ -719,7 +719,7 @@ def facloc_reg_train_model_online_taylor(start_rand_idxs, facloc_idxs, bud, lam)
         substrn_losses[i] = subtrn_loss
         fulltrn_losses[i] = full_trn_loss
         val_losses[i] = val_loss
-        time_array[i] = process_time() - start_time
+        time_array[i] = time() - start_time
         val_acc[i] = val_accu
         tst_acc[i] = tst_accu
         if i % print_every == 0:  # Print Training and Validation Loss
@@ -771,7 +771,7 @@ def train_model_mod_online(start_rand_idxs, bud):
                                                    sampler=SubsetRandomSampler(idxs),
                                                    pin_memory=True)
     for i in range(0, num_epochs):
-        start_time = process_time()
+        start_time = time()
         for batch_idx, (inputs, targets) in enumerate(trainloader):
             inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
             optimizer.zero_grad()
@@ -812,7 +812,7 @@ def train_model_mod_online(start_rand_idxs, bud):
 
         fulltrn_losses[i] = full_trn_loss
         val_losses[i] = val_loss
-        time_array[i] = process_time() - start_time
+        time_array[i] = time() - start_time
         val_acc[i] = val_accu
         tst_acc[i] = tst_accu
 
@@ -918,7 +918,7 @@ def train_model_random(start_rand_idxs):
                                                    pin_memory=True)
 
     for i in range(0, num_epochs):
-        start_time = process_time()
+        start_time = time()
         subtrn_loss = 0
         for batch_idx, (inputs, targets) in enumerate(subset_trnloader):
             # targets can have non_blocking=True.
@@ -962,7 +962,7 @@ def train_model_random(start_rand_idxs):
 
         fulltrn_losses[i] = full_trn_loss
         val_losses[i] = val_loss
-        time_array[i] = process_time() - start_time
+        time_array[i] = time() - start_time
         val_acc[i] = val_accu
         tst_acc[i] = tst_accu
 

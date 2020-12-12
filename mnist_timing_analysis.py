@@ -33,16 +33,17 @@ def train_model_craig(start_rand_idxs, bud, convex=True, every=False):
     timing = np.zeros(num_epochs)
     val_acc = np.zeros(num_epochs)
     tst_acc = np.zeros(num_epochs)
+    #device, x_trn, y_trn, model, N_trn, batch_size, if_convex)
     setf = CRAIG(device, x_trn, y_trn, model, N, 1000, False)
     cached_state_dict = copy.deepcopy(model.state_dict())
     clone_dict = copy.deepcopy(model.state_dict())
     idxs, gammas = setf.lazy_greedy_max(bud, clone_dict)
     model.load_state_dict(cached_state_dict)
-    exp_start_time_craig = time.process_time()
+    exp_start_time_craig = time.time()
     for i in range(num_epochs):
         print(i)
         # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
-        start_time = time.process_time()
+        start_time = time.time()
         inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
         optimizer.zero_grad()
         scores = model(inputs)
@@ -73,7 +74,8 @@ def train_model_craig(start_rand_idxs, bud, convex=True, every=False):
             tst_total = y_tst.size(0)
             tst_accu = 100 * tst_correct / tst_total
 
-        timing[i] = time.process_time() - start_time
+        timing[i] = time.time() - start_time
+        print(timing[i])
         val_acc[i] = val_accu
         tst_acc[i] = tst_accu
         if not convex:
@@ -131,20 +133,30 @@ def train_model_taylor(func_name, r, start_rand_idxs=None, bud=None, valid=True,
     val_acc = np.zeros(num_epochs)
     exp_start_time_onestep = time.time()
     for i in range(num_epochs):
-        start_time = time.process_time()
+        start_time = time.time()
+        if ((i + 1) % select_every == 0) and func_name not in ['Facility Location', 'Random', "KNNSB"]:
+            # val_in, val_t = x_val.to(device), y_val.to(device)  # Transfer them to device
+            cached_state_dict = copy.deepcopy(model.state_dict())
+            clone_dict = copy.deepcopy(model.state_dict())
+            t_ng_start = time.time()
+            new_idxs = setf_model.naive_greedy_max(bud, r, clone_dict)  # , grads_idxs
+            t_ng_end = time.time() - t_ng_start
+            print("Subset Selection Time: " + str(t_ng_end))
+            idxs = new_idxs  # update the current set
+            model.load_state_dict(cached_state_dict)
+
         # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
         inputs, targets = x_trn[idxs], y_trn[idxs]
         optimizer.zero_grad()
         scores = model(inputs)
         loss = criterion(scores, targets)
-        temp1 = torch.autograd.grad(loss, model.parameters())
-        grad_value = torch.norm(torch.cat((temp1[0], temp1[1].view(-1, 1)), dim=1).flatten()).item()
         optimizer.zero_grad()
         scores = model(inputs)
         loss = criterion(scores, targets)
         loss.backward()
         optimizer.step()
-
+        timing[i] = time.time() - start_time
+        print(timing[i])
         with torch.no_grad():
             # val_in, val_t = x_val.to(device), y_val.to(device)
             val_outputs = model(x_val)
@@ -170,17 +182,6 @@ def train_model_taylor(func_name, r, start_rand_idxs=None, bud=None, valid=True,
 
         if i % print_every == 0:  # Print Training and Validation Loss
             print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss:', loss.item(), full_trn_loss.item(), val_loss.item())
-
-        if ((i + 1) % select_every == 0) and func_name not in ['Facility Location', 'Random', "KNNSB"]:
-            substrn_grads.append(grad_value)
-            # val_in, val_t = x_val.to(device), y_val.to(device)  # Transfer them to device
-            cached_state_dict = copy.deepcopy(model.state_dict())
-            clone_dict = copy.deepcopy(model.state_dict())
-            # t_ng_start = time.time()
-            new_idxs = setf_model.naive_greedy_max(bud, r, clone_dict)  # , grads_idxs
-            idxs = new_idxs  # update the current set
-            model.load_state_dict(cached_state_dict)
-        timing[i] = time.process_time() - start_time
         val_acc[i] = val_accu
         tst_acc[i] = tst_accu
     time_list = timing
@@ -224,7 +225,7 @@ def train_model_mod_taylor(start_rand_idxs, bud, valid):
     batch_size = 20
     exp_start_time_full = time.time()
     for i in range(num_epochs):
-        start_time = time.process_time()
+        start_time = time.time()
         batch_wise_indices = list(BatchSampler(RandomSampler(trainset), bud, drop_last=False))
         for batch_idx in batch_wise_indices:
             # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
@@ -234,31 +235,30 @@ def train_model_mod_taylor(start_rand_idxs, bud, valid):
             loss = criterion(scores, targets)
             loss.backward()
             optimizer.step()
+        timing[i] = time.time() - start_time
+        print(timing[i])
+        with torch.no_grad():
+            # val_in, val_t = x_val.to(device), y_val.to(device)
+            val_outputs = model(x_val)
+            val_loss = criterion(val_outputs, y_val)
+            _, val_predict = val_outputs.max(1)
+            val_correct = val_predict.eq(y_val).sum().item()
+            val_total = y_val.size(0)
+            val_accu = 100 * val_correct / val_total
 
-            with torch.no_grad():
-                # val_in, val_t = x_val.to(device), y_val.to(device)
-                val_outputs = model(x_val)
-                val_loss = criterion(val_outputs, y_val)
-                _, val_predict = val_outputs.max(1)
-                val_correct = val_predict.eq(y_val).sum().item()
-                val_total = y_val.size(0)
-                val_accu = 100 * val_correct / val_total
+            full_trn_outputs = model(x_trn)
+            full_trn_loss = criterion(full_trn_outputs, y_trn)
+            _, full_predict = full_trn_outputs.max(1)
+            full_correct = full_predict.eq(y_trn).sum().item()
+            full_total = y_trn.size(0)
+            full_acc = 100 * full_correct / full_total
 
-                full_trn_outputs = model(x_trn)
-                full_trn_loss = criterion(full_trn_outputs, y_trn)
-                _, full_predict = full_trn_outputs.max(1)
-                full_correct = full_predict.eq(y_trn).sum().item()
-                full_total = y_trn.size(0)
-                full_acc = 100 * full_correct / full_total
-
-                tst_outputs = model(x_tst)
-                tst_loss = criterion(tst_outputs, y_tst)
-                _, tst_predict = tst_outputs.max(1)
-                tst_correct = tst_predict.eq(y_tst).sum().item()
-                tst_total = y_tst.size(0)
-                tst_accu = 100 * tst_correct / tst_total
-
-        timing[i] = time.process_time() - start_time
+            tst_outputs = model(x_tst)
+            tst_loss = criterion(tst_outputs, y_tst)
+            _, tst_predict = tst_outputs.max(1)
+            tst_correct = tst_predict.eq(y_tst).sum().item()
+            tst_total = y_tst.size(0)
+            tst_accu = 100 * tst_correct / tst_total
         val_acc[i] = val_accu
         tst_acc[i] = tst_accu
     time_list = timing
@@ -283,13 +283,13 @@ def train_model_mod_taylor(start_rand_idxs, bud, valid):
     return val_acc, tst_acc, time_list
 
 
-device = "cuda"
+device = "cpu"
 print("Using Device:", device)
 
 datadir = './'
 data_name = 'mnist'
-fraction = 0.3
-num_epochs = 300
+fraction = 0.1
+num_epochs = 10
 select_every = 20
 feature = 'DSS'
 warm_method = 0  # whether to use warmstart-onestep (1) or online (0)
@@ -410,7 +410,7 @@ for r in R:
                '_selEvery:' + str(select_every) + '_variant' + str(warm_method) + '_runs' + str(num_runs)
     print(exp_name)
     # Online algo run
-    craig_valacc, craig_tstacc, craig_timing = train_model_craig(start_idxs, bud, False, False)
+    #craig_valacc, craig_tstacc, craig_timing = train_model_craig(start_idxs, bud, False, False)
 
     print(time.time())
     t_val_valacc, t_val_tstacc, t_val_timing = train_model_taylor('Taylor Online', r, start_idxs, bud, True)
@@ -446,16 +446,16 @@ for r in R:
     plt.savefig(plt_file)
     plt.clf()
 
-    craig_cumulative_timing = [0 for x in craig_timing]
-    for i in range(len(craig_timing)):
-        craig_cumulative_timing[i] = np.array(craig_timing)[0:i+1].sum()
-    craig_timing = craig_cumulative_timing
+    #craig_cumulative_timing = [0 for x in craig_timing]
+    #for i in range(len(craig_timing)):
+    #    craig_cumulative_timing[i] = np.array(craig_timing)[0:i+1].sum()
+    #craig_timing = craig_cumulative_timing
 
 
     ###### Validation #############
 
     plt.figure()
-    plt.plot(craig_timing, craig_valacc, 'g-', label='CRAIG')
+    #plt.plot(craig_timing, craig_valacc, 'g-', label='CRAIG')
     plt.plot(mod_t_timing, mod_t_valacc, 'orange', label='full training')
     plt.plot(t_val_timing, t_val_valacc, 'b-', label='GLISTER')
 

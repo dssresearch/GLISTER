@@ -4,7 +4,7 @@ import sys
 #datadir = sys.argv[1]
 #data_name = sys.argv[2]
 datadir = '../data/'
-fracs =[0.1, 0.3, 0.5]
+fracs =[0.1]
 num_epochs = 300
 select_every = [20]#,35,50]
 warm_method = [0]   # 0 = online, 1 = onestep warmstart
@@ -18,7 +18,7 @@ for dset in datasets:
             for feat in feature:
                 for isOneStepWarm in warm_method:
                     args = ['python']
-                    args.append('dss_deep.py')
+                    args.append('deep_timing.py')
                     args.append(datadir + dset)
                     args.append(dset)
                     args.append(str(f))

@@ -1,6 +1,6 @@
 import subprocess
 
-datadir = './data/'
+datadir = '../data/'
 datasets = ['sklearn-digits', 'dna','satimage','svmguide1']
 #datasets = ['dna']
 #datasets = ['dna']
@@ -11,7 +11,7 @@ datasets = ['sklearn-digits', 'dna','satimage','svmguide1']
 #datasets = ['mnist']
 fracs =[0.1]#, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 #fracs =[0.1, 0.2, 0.3, 0.4, 0.5]
-num_epochs = 200
+num_epochs = 300
 select_every = [20]#,35,50]
 warm_method = [0]   # 0 = online, 1 = onestep warmstart
 num_runs = 10
