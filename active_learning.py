@@ -590,9 +590,9 @@ print(data_name,":Budget = ", fraction, file=logfile)
 
 methods=["One Step Taylor",'Fac Loc Reg One Step','Rand Reg One Step','Facility Location','FASS',\
 'Random',"BADGE","Diver One Step"] #,"Full One Step" #'One step Perturbation'
-val_acc =[t_va,facloc_reg_t_va,rand_t_va,fva,kva,rva,bva] #,ft_va
-tst_acc =[t_ta,facloc_reg_t_ta,rand_t_ta,fta,kta,rta,bta] #,ft_ta
-unlabel_acc =[t_ua,facloc_reg_t_ua,rand_t_ua,fua,kua,rua,bua] #,ft_ua
+val_acc =[t_va,facloc_reg_t_va,rand_t_va,fva,kva,rva,bva,dt_va] #,ft_va
+tst_acc =[t_ta,facloc_reg_t_ta,rand_t_ta,fta,kta,rta,bta,dt_ta] #,ft_ta
+unlabel_acc =[t_ua,facloc_reg_t_ua,rand_t_ua,fua,kua,rua,bua,dt_ua] #,ft_ua
 
 print("Validation Accuracy",file=logfile)
 print('---------------------------------------------------------------------',file=logfile)
