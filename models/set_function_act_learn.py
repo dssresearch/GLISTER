@@ -967,7 +967,7 @@ class FacReg_GlisterActLinear_SetFunction_Closed_Vect(object):
                     first_i = False
                 for j, g_j in enumerate(g_is, 0):
                     self.sim_mat[i * size_b: i * size_b + g_i.size(0),
-                    j * size_b: j * size_b + g_j.size(0)] = self._distance(g_i, g_j)
+                    j * size_b: j * size_b + g_j.size(0)] = self.distance(g_i, g_j)
 
             self.const = torch.max(self.sim_mat).item()
             self.sim_mat = self.const - self.sim_mat
