@@ -113,7 +113,7 @@ def train_model_craig(start_rand_idxs, bud, convex=True, every=False):
     return val_acc, tst_acc, time_list
 
 
-def train_model_taylor(func_name, r, start_rand_idxs=None, bud=None, valid=True, fac_loc_idx=None):
+def train_model_taylor(func_name, r, start_rand_idxs=None, bud=None):
     torch.manual_seed(42)
     np.random.seed(42)
     model = TwoLayerNet(M, num_cls, 100)
@@ -147,9 +147,6 @@ def train_model_taylor(func_name, r, start_rand_idxs=None, bud=None, valid=True,
 
         # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
         inputs, targets = x_trn[idxs], y_trn[idxs]
-        optimizer.zero_grad()
-        scores = model(inputs)
-        loss = criterion(scores, targets)
         optimizer.zero_grad()
         scores = model(inputs)
         loss = criterion(scores, targets)
@@ -286,10 +283,10 @@ def train_model_mod_taylor(start_rand_idxs, bud, valid):
 device = "cpu"
 print("Using Device:", device)
 
-datadir = './'
-data_name = 'mnist'
+datadir = '../data/' + 'dna/'
+data_name = 'dna'
 fraction = 0.1
-num_epochs = 10
+num_epochs = 200
 select_every = 20
 feature = 'DSS'
 warm_method = 0  # whether to use warmstart-onestep (1) or online (0)
@@ -298,7 +295,12 @@ learning_rate = 0.05
 
 if data_name in ['dna', 'sklearn-digits', 'satimage', 'svmguide1', 'letter', 'shuttle', 'ijcnn1', 'sensorless',
                  'connect_4', 'sensit_seismic', 'usps']:
-    fullset, valset, testset, data_dims, num_cls = load_dataset_custom(datadir, data_name, feature=feature, isnumpy=True)
+    fullset, valset, testset, data_dims, num_cls = load_dataset_custom(datadir, data_name, feature=feature, isnumpy=False)
+    validation_set_fraction = 0.1
+    num_fulltrn = len(fullset)
+    num_val = int(num_fulltrn * validation_set_fraction)
+    num_trn = num_fulltrn - num_val
+    trainset, validset = random_split(fullset, [num_trn, num_val])
 elif data_name in ['mnist', "fashion-mnist", 'cifar10']:
     fullset, valset, testset, num_cls = load_mnist_cifar(datadir, data_name, feature=feature)
     validation_set_fraction = 0.1
@@ -395,13 +397,13 @@ for item in range(math.ceil(len(x_trn) / train_batch_size)):
 start_idxs = np.random.choice(N, size=bud, replace=False)
 random_subset_idx = [x for x in start_idxs]
 
-R = [bud]
+R = [1, 5, 10, 20]
 # CRAIG Run
 # print(time.time())
 # craig_valacc, craig_tstacc, craig_timing = train_model_craig(start_idxs, bud, False, False)
 # print(time.time())
 for r in R:
-    all_logs_dir = data_name + '/adam/' + str(fraction) + '/' + str(r) + '/' + str(select_every)
+    all_logs_dir = './results/timing' + data_name + '/adam/' + str(fraction) + '/' + str(r) + '/' + str(select_every)
     print(all_logs_dir)
     subprocess.run(["mkdir", "-p", all_logs_dir])
     path_logfile = os.path.join(all_logs_dir, data_name + 'craig' + '.txt')
@@ -413,31 +415,42 @@ for r in R:
     #craig_valacc, craig_tstacc, craig_timing = train_model_craig(start_idxs, bud, False, False)
 
     print(time.time())
-    t_val_valacc, t_val_tstacc, t_val_timing = train_model_taylor('Taylor Online', r, start_idxs, bud, True)
+    t_val_valacc, t_val_tstacc, t_val_timing = train_model_taylor('Taylor Online', r, start_idxs, bud)
     print(time.time())
 
+    r_val_valacc, r_val_tstacc, r_val_timing = train_model_taylor('Random', r, start_idxs, bud)
     #Full Data Training
     print(time.time())
     mod_t_valacc, mod_t_tstacc, mod_t_timing = train_model_mod_taylor(start_idxs, bud, True)
     print(time.time())
 
-    mod_cumulative_timing = [0 for x in mod_t_timing]
+    sum = 0
+    mod_cumulative_timing = np.zeros(len(mod_t_timing))
     for i in range(len(mod_cumulative_timing)):
-        mod_cumulative_timing[i] = np.array(mod_t_timing)[0:i+1].sum()
+        sum += mod_t_timing[i]
+        mod_cumulative_timing[i] = sum
     mod_t_timing = mod_cumulative_timing
 
-    t_val_cumulative_timing = [0 for x in t_val_timing]
+    sum = 0
+    t_val_cumulative_timing = np.zeros(len(t_val_timing))
     for i in range(len(t_val_timing)):
-        t_val_cumulative_timing[i] = np.array(t_val_timing)[0:i+1].sum()
+        sum += t_val_timing[i]
+        t_val_cumulative_timing[i] = sum
     t_val_timing = t_val_cumulative_timing
 
+    sum = 0
+    r_val_cumulative_timing = np.zeros(len(r_val_timing))
+    for i in range(len(r_val_timing)):
+        sum += r_val_timing[i]
+        r_val_cumulative_timing[i] = sum
+    r_val_timing = r_val_cumulative_timing
     ###### Test accuray #############
 
     plt.figure()
     #plt.plot(craig_timing, craig_tstacc, 'g-', label='CRAIG')
-    plt.plot(mod_t_timing, mod_t_tstacc, 'orange', label='full training')
+    plt.plot(mod_t_timing, mod_t_tstacc, 'orange', label='Full training')
     plt.plot(t_val_timing, t_val_tstacc, 'b-', label='GLISTER')
-
+    plt.plot(r_val_timing, r_val_tstacc, 'r', label='Random')
     plt.legend()
     plt.xlabel('Time')
     plt.ylabel('Test accuracy')
@@ -456,9 +469,9 @@ for r in R:
 
     plt.figure()
     #plt.plot(craig_timing, craig_valacc, 'g-', label='CRAIG')
-    plt.plot(mod_t_timing, mod_t_valacc, 'orange', label='full training')
+    plt.plot(mod_t_timing, mod_t_valacc, 'orange', label='Full training')
     plt.plot(t_val_timing, t_val_valacc, 'b-', label='GLISTER')
-
+    plt.plot(r_val_timing, r_val_valacc, 'r', label='Random')
     plt.legend()
     plt.xlabel('Time')
     plt.ylabel('Validation accuracy')

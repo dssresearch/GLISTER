@@ -73,8 +73,8 @@ def perform_knnsb_selection(datadir, dset_name, budget, selUsing):
     idxs_knnsb = np.genfromtxt(indices_file, delimiter=',', dtype=int) # since they are indices!
     return idxs_knnsb
 
-#device = "cuda" if torch.cuda.is_available() else "cpu"
-device = "cpu"
+device = "cuda" if torch.cuda.is_available() else "cpu"
+#device = "cpu"
 print("Using Device:", device)
 
 ## Convert to this argparse
@@ -357,10 +357,9 @@ def train_model_glister_closed(start_rand_idxs, bud):
     tst_acc = np.zeros(num_epochs)
     full_trn_acc = np.zeros(num_epochs)
     subtrn_acc = np.zeros(num_epochs)
-
+    subset_trnloader = torch.utils.data.DataLoader(trainset, batch_size=trn_batch_size,
+            			shuffle=False, sampler=SubsetRandomSampler(idxs), pin_memory=True)
     for i in range(0, num_epochs):
-        actual_idxs = np.array(trainset.indices)[idxs]
-        batch_wise_indices = [actual_idxs[x] for x in list(BatchSampler(RandomSampler(actual_idxs), trn_batch_size, drop_last=False))]
         subtrn_loss = 0
         subtrn_correct = 0
         subtrn_total = 0
@@ -376,12 +375,17 @@ def train_model_glister_closed(start_rand_idxs, bud):
             idxs = subset_idxs
             print("selEpoch: %d, Selection Ended at:" % (i), str(datetime.datetime.now()))
             model.load_state_dict(cached_state_dict)
+            #actual_idxs = np.array(trainset.indices)[idxs]
+            subset_trnloader = torch.utils.data.DataLoader(trainset, batch_size=trn_batch_size,
+            			shuffle=False, sampler=SubsetRandomSampler(idxs), pin_memory=True)
+            #batch_wise_indices = [actual_idxs[x] for x in list(BatchSampler(RandomSampler(actual_idxs), trn_batch_size, drop_last=False))]
         model.train()
-        for batch_idx in batch_wise_indices:
-            inputs = torch.cat(
-                [fullset[x][0].view(-1, num_channels, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
-                dim=0).type(torch.float)
-            targets = torch.tensor([fullset[x][1] for x in batch_idx])
+        #for batch_idx in batch_wise_indices:
+        for batch_idx, (inputs, targets) in enumerate(subset_trnloader):
+            #inputs = torch.cat(
+            #    [fullset[x][0].view(-1, num_channels, fullset[x][0].shape[1], fullset[x][0].shape[2]) for x in batch_idx],
+            #    dim=0).type(torch.float)
+            #targets = torch.tensor([fullset[x][1] for x in batch_idx])
             inputs, targets = inputs.to(device), targets.to(device, non_blocking=True) # targets can have non_blocking=True.
             optimizer.zero_grad()
             outputs = model(inputs)
@@ -444,8 +448,129 @@ def train_model_glister_closed(start_rand_idxs, bud):
         substrn_losses[i] = subtrn_loss
         fulltrn_losses[i] = full_trn_loss
         val_losses[i] = val_loss
-        if i % print_every == 0:  # Print Training and Validation Loss
-            print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss,Time:', subtrn_loss, full_trn_loss, val_loss, timing[i])
+        print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss,Time:', subtrn_loss, full_trn_loss, val_loss, timing[i])
+
+
+    print("SelectionRun---------------------------------")
+    print("Final SubsetTrn and FullTrn Loss:", subtrn_loss, full_trn_loss)
+    print("Validation Loss and Accuracy:", val_loss, val_acc[-1])
+    print("Test Data Loss and Accuracy:", tst_loss, tst_acc[-1])
+    print('-----------------------------------')
+
+    print("GLISTER", file=logfile)
+    print('---------------------------------------------------------------------', file=logfile)
+    val = "Validation Accuracy,"
+    tst = "Test Accuracy,"
+    time_str = "Time,"
+    for i in range(num_epochs):
+        time_str = time_str + "," + str(timing[i])
+        val = val + "," + str(val_acc[i])
+        tst = tst + "," + str(tst_acc[i])
+    print(timing, file=logfile)
+    print(val, file=logfile)
+    print(tst, file=logfile)
+    return val_acc[-1], tst_acc[-1],  subtrn_acc[-1], full_trn_acc[-1], val_loss, tst_loss, subtrn_loss, full_trn_loss, val_losses, substrn_losses, fulltrn_losses, idxs, np.sum(timing), timing, val_acc, tst_acc
+
+
+def train_model_random_online(start_rand_idxs, bud):
+    torch.manual_seed(42)
+    np.random.seed(42)
+    if data_name == 'mnist':
+        #model = MnistNet()
+        model = Net()
+    elif data_name == 'cifar10':
+        model = ResNet18(num_cls)
+    model = model.to(device)
+    idxs = start_rand_idxs
+    criterion = nn.CrossEntropyLoss()
+    #optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate,
+                          momentum=0.9, weight_decay=5e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
+    print("Starting Random Online Run with taylor!")
+    substrn_losses = np.zeros(num_epochs)
+    fulltrn_losses = np.zeros(num_epochs)
+    val_losses = np.zeros(num_epochs)
+    timing = np.zeros(num_epochs)
+    val_acc = np.zeros(num_epochs)
+    tst_acc = np.zeros(num_epochs)
+    full_trn_acc = np.zeros(num_epochs)
+    subtrn_acc = np.zeros(num_epochs)
+
+    for i in range(0, num_epochs):
+        subtrn_loss = 0
+        subtrn_correct = 0
+        subtrn_total = 0
+        start_time = time.time()
+        if (((i) % select_every) == 0):
+            idxs = np.random.choice(N, size=bud, replace=False)
+            subset_trnloader = torch.utils.data.DataLoader(trainset, batch_size=trn_batch_size,
+            			shuffle=False, sampler=SubsetRandomSampler(idxs), pin_memory=True)
+        model.train()
+        for batch_idx, (inputs, targets) in enumerate(subset_trnloader):
+            inputs, targets = inputs.to(device), targets.to(device, non_blocking=True) # targets can have non_blocking=True.
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            subtrn_loss += loss.item()
+            loss.backward()
+            optimizer.step()
+            _, predicted = outputs.max(1)
+            subtrn_total += targets.size(0)
+            subtrn_correct += predicted.eq(targets).sum().item()
+        scheduler.step()
+        timing[i] = time.time() - start_time
+        #print("Epoch timing is: " + str(timing[i]))
+        val_loss = 0
+        val_correct = 0
+        val_total = 0
+        tst_correct = 0
+        tst_total = 0
+        tst_loss = 0
+        full_trn_loss = 0
+        #subtrn_loss = 0
+        full_trn_correct = 0
+        full_trn_total = 0
+        model.eval()
+        with torch.no_grad():
+
+            for batch_idx, (inputs, targets) in enumerate(valloader):
+                #print(batch_idx)
+                inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
+                outputs = model(inputs)
+                loss = criterion(outputs, targets)
+                val_loss += loss.item()
+                _, predicted = outputs.max(1)
+                val_total += targets.size(0)
+                val_correct += predicted.eq(targets).sum().item()
+
+            for batch_idx, (inputs, targets) in enumerate(testloader):
+                #print(batch_idx)
+                inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
+                outputs = model(inputs)
+                loss = criterion(outputs, targets)
+                tst_loss += loss.item()
+                _, predicted = outputs.max(1)
+                tst_total += targets.size(0)
+                tst_correct += predicted.eq(targets).sum().item()
+
+            for batch_idx, (inputs, targets) in enumerate(trainloader):
+                inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
+                outputs = model(inputs)
+                loss = criterion(outputs, targets)
+                full_trn_loss += loss.item()
+                _, predicted = outputs.max(1)
+                full_trn_total += targets.size(0)
+                full_trn_correct += predicted.eq(targets).sum().item()
+
+        val_acc[i] = val_correct/val_total
+        tst_acc[i] = tst_correct/tst_total
+        subtrn_acc[i] = subtrn_correct/subtrn_total
+        full_trn_acc[i] = full_trn_correct/full_trn_total
+        substrn_losses[i] = subtrn_loss
+        fulltrn_losses[i] = full_trn_loss
+        val_losses[i] = val_loss
+        print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss,Time:', subtrn_loss, full_trn_loss, val_loss, timing[i])
 
 
     print("SelectionRun---------------------------------")
@@ -513,7 +638,7 @@ def train_model_mod_online(start_rand_idxs, bud):
             loss.backward()
             optimizer.step()
         scheduler.step()
-        timing[i] = 2 * (time.time() - start_time)
+        timing[i] = time.time() - start_time
         val_loss = 0
         val_correct = 0
         val_total = 0
@@ -573,8 +698,7 @@ def train_model_mod_online(start_rand_idxs, bud):
         substrn_losses[i] = subtrn_loss
         fulltrn_losses[i] = full_trn_loss
         val_losses[i] = val_loss
-        if i % print_every == 0:  # Print Training and Validation Loss
-            print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss,Time:', subtrn_loss, full_trn_loss, val_loss, timing[i])
+        print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss,Time:', subtrn_loss, full_trn_loss, val_loss, timing[i])
     print("SelectionRun---------------------------------")
     print("Final SubsetTrn and FullTrn Loss:", subtrn_loss, full_trn_loss)
     print("Validation Loss and Accuracy:", val_loss, val_acc[-1])
@@ -597,143 +721,15 @@ def train_model_mod_online(start_rand_idxs, bud):
            np.sum(timing), timing, val_acc, tst_acc
 
 
-def train_model_random_online(start_rand_idxs):
-    start = torch.cuda.Event(enable_timing=True)
-    end = torch.cuda.Event(enable_timing=True)
-    start.record()
-    torch.manual_seed(42)
-    np.random.seed(42)
-    if data_name == 'mnist':
-        model = Net()
-    elif data_name == 'cifar10':
-        model = ResNet18(num_cls)
-    model = model.to(device)
-    idxs = start_rand_idxs
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
-    print("Starting Random Run")
-    substrn_losses = np.zeros(num_epochs)
-    fulltrn_losses = np.zeros(num_epochs)
-    val_losses = np.zeros(num_epochs)
-    subset_trnloader = torch.utils.data.DataLoader(trainset, batch_size=trn_batch_size, shuffle=False,
-                                                   sampler=SubsetRandomSampler(idxs),
-                                                   pin_memory=True)
-    for i in range(0, num_epochs):
-        subtrn_loss = 0
-        for batch_idx, (inputs, targets) in enumerate(subset_trnloader):
-            # targets can have non_blocking=True.
-            inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            subtrn_loss += loss.item()
-            loss.backward()
-            optimizer.step()
-
-        val_loss = 0
-        full_trn_loss = 0
-
-        with torch.no_grad():
-            for batch_idx, (inputs, targets) in enumerate(valloader):
-                inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
-                outputs = model(inputs)
-                loss = criterion(outputs, targets)
-                val_loss += loss.item()
-
-            for batch_idx, (inputs, targets) in enumerate(trainloader):
-                inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
-                outputs = model(inputs)
-                loss = criterion(outputs, targets)
-                full_trn_loss += loss.item()
-
-        substrn_losses[i] = subtrn_loss
-        fulltrn_losses[i] = full_trn_loss
-        val_losses[i] = val_loss
-        if i % print_every == 0:  # Print Training and Validation Loss
-            print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss:', subtrn_loss, full_trn_loss, val_loss)
-
-        if ((i + 1) % select_every) == 0:
-            idxs = np.random.choice(N, size=bud, replace=False)
-            subset_trnloader = torch.utils.data.DataLoader(trainset, batch_size=trn_batch_size, shuffle=False,
-                                                           sampler=SubsetRandomSampler(idxs),
-                                                           pin_memory=True)
-
-    end.record()
-    torch.cuda.synchronize()
-    time = start.elapsed_time(end) / 1000
-
-    subtrn_loss = 0
-    subtrn_correct = 0
-    subtrn_total = 0
-    with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(subset_trnloader):
-            inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            subtrn_loss += loss.item()
-            _, predicted = outputs.max(1)
-            subtrn_total += targets.size(0)
-            subtrn_correct += predicted.eq(targets).sum().item()
-    subtrn_acc = subtrn_correct / subtrn_total
-
-    val_loss = 0
-    val_correct = 0
-    val_total = 0
-    with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(valloader):
-            inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            val_loss += loss.item()
-            _, predicted = outputs.max(1)
-            val_total += targets.size(0)
-            val_correct += predicted.eq(targets).sum().item()
-    val_acc = val_correct / val_total
-
-    full_trn_loss = 0
-    full_trn_correct = 0
-    full_trn_total = 0
-    with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(trainloader):
-            inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            full_trn_loss += loss.item()
-            _, predicted = outputs.max(1)
-            full_trn_total += targets.size(0)
-            full_trn_correct += predicted.eq(targets).sum().item()
-    full_trn_acc = full_trn_correct / full_trn_total
-
-    test_loss = 0
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(testloader):
-            inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            test_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += targets.size(0)
-            correct += predicted.eq(targets).sum().item()
-    tst_acc = correct / total
-
-    print("SelectionRun---------------------------------")
-    print("Final SubsetTrn and FullTrn Loss:", subtrn_loss, full_trn_loss)
-    print("Validation Loss and Accuracy:", val_loss, val_acc)
-    print("Test Data Loss and Accuracy:", test_loss, tst_acc)
-    print('-----------------------------------')
-    return val_acc, tst_acc,  subtrn_acc, full_trn_acc, val_loss, test_loss, subtrn_loss, full_trn_loss, val_losses, substrn_losses, fulltrn_losses, time
-
 
 start_idxs = np.random.choice(N, size=bud, replace=False)
 random_subset_idx = [trainset.indices[x] for x in start_idxs]
 
 # Modified OneStep Runs
-mod_val_valacc, mod_val_tstacc, mod_val_subtrn_acc, mod_val_full_trn_acc, mod_val_valloss, mod_val_tstloss, \
-mod_val_subtrnloss, mod_val_full_trn_loss, mod_val_val_losses, mod_val_substrn_losses, mod_val_fulltrn_losses,\
-mod_subset_idxs, mod_one_step_time, mod_timing, mod_val_accuracies, mod_tst_accuracies = \
-train_model_mod_online(start_idxs, bud)
+#mod_val_valacc, mod_val_tstacc, mod_val_subtrn_acc, mod_val_full_trn_acc, mod_val_valloss, mod_val_tstloss, \
+#mod_val_subtrnloss, mod_val_full_trn_loss, mod_val_val_losses, mod_val_substrn_losses, mod_val_fulltrn_losses,\
+#mod_subset_idxs, mod_one_step_time, mod_timing, mod_val_accuracies, mod_tst_accuracies = \
+#train_model_mod_online(start_idxs, bud)
 
 # Online algo run
 closed_val_valacc, closed_val_tstacc, closed_val_subtrn_acc, closed_val_full_trn_acc, closed_val_valloss, closed_val_tstloss,  closed_val_subtrnloss, \
@@ -741,13 +737,13 @@ closed_val_full_trn_loss, closed_fval_val_losses, closed_fval_substrn_losses, cl
 closed_step_time, closed_timing, closed_val_accuracies, closed_tst_accuracies= \
 train_model_glister_closed(start_idxs, bud)
 
-mod_cum_timing = np.zeros(num_epochs)
+#mod_cum_timing = np.zeros(num_epochs)
 closed_cum_timing = np.zeros(num_epochs)
 
-tmp = 0
-for i in range(len(mod_timing)):
-    tmp += mod_timing[i]
-    mod_cum_timing[i] = tmp
+#tmp = 0
+#for i in range(len(mod_timing)):
+#    tmp += mod_timing[i]
+#    mod_cum_timing[i] = tmp
 
 tmp = 0
 for i in range(len(closed_timing)):
@@ -757,7 +753,7 @@ for i in range(len(closed_timing)):
 ###### Test accuray #############
 plt.figure()
 # plt.plot(craig_timing, craig_tstacc,'g-' , label='CRAIG')
-plt.plot(mod_cum_timing, mod_tst_accuracies, 'orange', label='full training')
+#plt.plot(mod_cum_timing, mod_tst_accuracies, 'orange', label='full training')
 plt.plot(closed_cum_timing, closed_tst_accuracies, 'b-', label='GLISTER')
 plt.legend()
 plt.xlabel('Time')
@@ -772,7 +768,7 @@ plt.clf()
 
 plt.figure()
 # plt.plot(craig_timing, craig_valacc,'g-' , label='CRAIG')
-plt.plot(mod_cum_timing, mod_val_accuracies, 'orange', label='full training')
+#plt.plot(mod_cum_timing, mod_val_accuracies, 'orange', label='full training')
 plt.plot(closed_cum_timing, closed_val_accuracies, 'b-', label='GLISTER')
 plt.legend()
 plt.xlabel('Time')

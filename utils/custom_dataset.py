@@ -18,11 +18,11 @@ class CustomDataset(Dataset):
         self.transform = transform
         if device is not None:
             # Push the entire data to given device, eg: cuda:0
-            self.data = torch.from_numpy(data.astype('float32'))#.to(device)
-            self.targets = torch.from_numpy(target)#.to(device)
+            self.data = data.float().to(device)
+            self.targets = target.long().to(device)
         else:
-            self.data = data.astype('float32')
-            self.targets = target
+            self.data = data.float()
+            self.targets = target.long()
 
     def __len__(self):
         return len(self.targets)
@@ -327,9 +327,9 @@ def load_dataset_custom (datadir, dset_name, feature, isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn)
-            valset = CustomDataset(x_val, y_val)
-            testset = CustomDataset(x_tst, y_tst)
+            fullset = CustomDataset(torch.from_numpy(x_trn), torch.from_numpy(y_trn))
+            valset = CustomDataset(torch.from_numpy(x_val), torch.from_numpy(y_val))
+            testset = CustomDataset(torch.from_numpy(x_tst), torch.from_numpy(y_tst))
         return fullset, valset, testset, data_dims,num_cls 
 
     elif dset_name == "adult":
@@ -362,9 +362,9 @@ def load_dataset_custom (datadir, dset_name, feature, isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn)
-            valset = CustomDataset(x_val, y_val)
-            testset = CustomDataset(x_tst, y_tst)
+            fullset = CustomDataset(torch.from_numpy(x_trn), torch.from_numpy(y_trn))
+            valset = CustomDataset(torch.from_numpy(x_val), torch.from_numpy(y_val))
+            testset = CustomDataset(torch.from_numpy(x_tst), torch.from_numpy(y_tst))
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -398,9 +398,9 @@ def load_dataset_custom (datadir, dset_name, feature, isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn)
-            valset = CustomDataset(x_val, y_val)
-            testset = CustomDataset(x_tst, y_tst)
+            fullset = CustomDataset(torch.from_numpy(x_trn), torch.from_numpy(y_trn))
+            valset = CustomDataset(torch.from_numpy(x_val), torch.from_numpy(y_val))
+            testset = CustomDataset(torch.from_numpy(x_tst), torch.from_numpy(y_tst))
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -434,9 +434,9 @@ def load_dataset_custom (datadir, dset_name, feature, isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn)
-            valset = CustomDataset(x_val, y_val)
-            testset = CustomDataset(x_tst, y_tst)
+            fullset = CustomDataset(torch.from_numpy(x_trn), torch.from_numpy(y_trn))
+            valset = CustomDataset(torch.from_numpy(x_val), torch.from_numpy(y_val))
+            testset = CustomDataset(torch.from_numpy(x_tst), torch.from_numpy(y_tst))
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -473,9 +473,9 @@ def load_dataset_custom (datadir, dset_name, feature, isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn)
-            valset = CustomDataset(x_val, y_val)
-            testset = CustomDataset(x_tst, y_tst)
+            fullset = CustomDataset(torch.from_numpy(x_trn), torch.from_numpy(y_trn))
+            valset = CustomDataset(torch.from_numpy(x_val), torch.from_numpy(y_val))
+            testset = CustomDataset(torch.from_numpy(x_tst), torch.from_numpy(y_tst))
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -507,9 +507,9 @@ def load_dataset_custom (datadir, dset_name, feature, isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn)
-            valset = CustomDataset(x_val, y_val)
-            testset = CustomDataset(x_tst, y_tst)
+            fullset = CustomDataset(torch.from_numpy(x_trn), torch.from_numpy(y_trn))
+            valset = CustomDataset(torch.from_numpy(x_val), torch.from_numpy(y_val))
+            testset = CustomDataset(torch.from_numpy(x_tst), torch.from_numpy(y_tst))
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -541,9 +541,9 @@ def load_dataset_custom (datadir, dset_name, feature, isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn)
-            valset = CustomDataset(x_val, y_val)
-            testset = CustomDataset(x_tst, y_tst)
+            fullset = CustomDataset(torch.from_numpy(x_trn), torch.from_numpy(y_trn))
+            valset = CustomDataset(torch.from_numpy(x_val), torch.from_numpy(y_val))
+            testset = CustomDataset(torch.from_numpy(x_tst), torch.from_numpy(y_tst))
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -579,9 +579,9 @@ def load_dataset_custom (datadir, dset_name, feature, isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn)
-            valset = CustomDataset(x_val, y_val)
-            testset = CustomDataset(x_tst, y_tst)
+            fullset = CustomDataset(torch.from_numpy(x_trn), torch.from_numpy(y_trn))
+            valset = CustomDataset(torch.from_numpy(x_val), torch.from_numpy(y_val))
+            testset = CustomDataset(torch.from_numpy(x_tst), torch.from_numpy(y_tst))
 
         return fullset, valset, testset, data_dims,num_cls 
 
@@ -611,9 +611,9 @@ def load_dataset_custom (datadir, dset_name, feature, isnumpy=True):
             testset = (x_tst, y_tst)
 
         else:
-            fullset = CustomDataset(x_trn, y_trn)
-            valset = CustomDataset(x_val, y_val)
-            testset = CustomDataset(x_tst, y_tst)
+            fullset = CustomDataset(torch.from_numpy(x_trn), torch.from_numpy(y_trn))
+            valset = CustomDataset(torch.from_numpy(x_val), torch.from_numpy(y_val))
+            testset = CustomDataset(torch.from_numpy(x_tst), torch.from_numpy(y_tst))
 
         return fullset, valset, testset, x_trn.shape[1],num_cls 
 
