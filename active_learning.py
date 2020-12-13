@@ -95,6 +95,30 @@ x_val, y_val = x_val.to(device), y_val.to(device)
 train_batch_size_for_greedy = 800#1200 
 train_batch_size = 128
 
+def predict(model, X, Y):
+
+    if type(X) is np.ndarray:
+        loader_te = DataLoader(CustomDataset_WithId(X, Y,transform=None),shuffle=False,\
+            batch_size=1000)
+    else: 
+        loader_te =  DataLoader(CustomDataset_WithId(X.numpy(), Y, transform=None,\
+            shuffle=False, batch_size=1000)
+
+    #model.eval()
+    P = torch.zeros(len(Y)).long()
+    with torch.no_grad():
+        for batch_idx in list(loader_te.batch_sampler):
+            x, y, idxs = loader_te.dataset[batch_idx]
+            if 'numpy' in str(type(x)):
+                x = torch.from_numpy(x).type(torch.float)
+            if 'numpy' in str(type(y)):
+                y = torch.from_numpy(y).type(torch.long)
+            x, y = Variable(x.cuda()), Variable(y.cuda())
+            out, e1 = model(x)
+            pred = out.max(1)[1]
+            P[idxs] = pred.data.cpu()
+    return P
+
 def perform_knnsb_selection(datadir, dset_name,X,Y, budget, selUsing):
 
     trndata = np.c_[X.cpu(), Y.cpu()]
@@ -344,12 +368,13 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
         curr_X_trn = x_trn[list(remainList)]
         curr_Y_trn = y_trn[list(remainList)]
 
-        model.eval()
+        """model.eval()
         with torch.no_grad():
             '''full_trn_out = model(x_trn)
             full_trn_loss = criterion(full_trn_out, y_trn).mean()
             sub_trn_out = model(x_trn[idxs])
             sub_trn_loss = criterion(sub_trn_out, y_trn[idxs]).mean()'''
+
             val_out = model(x_val)
             val_loss = criterion(val_out, y_val)
             _, val_predict = val_out.max(1)
@@ -373,11 +398,15 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             _, rem_predict = rem_out.max(1)
             rem_correct = rem_predict.eq(curr_Y_trn).sum().item()
             rem_total = curr_Y_trn.size(0)
-            rem_acc = 100 * rem_correct / rem_total
+            rem_acc = 100 * rem_correct / rem_total"""
 
-        val_accies[n] = val_acc
-        test_accies[n] = tst_acc
-        unlab_accies[n] = rem_acc
+        val = predict(model,x_val,y_val)
+        tst = predict(model,x_tst,y_tst)
+        ulab = predict(model,curr_X_trn,curr_Y_trn)
+        
+        val_accies[n] = 100.0 * val.eq(torch.tensor(y_val)).sum().item()/ y_val.size(0) #val_acc
+        test_accies[n] = 100.0 * tst.eq(torch.tensor(y_tst)).sum().item()/ y_tst.size(0) #tst_acc
+        unlab_accies[n] = 100.0 * ulab.eq(torch.tensor(curr_Y_trn)).sum().item()/ curr_Y_trn.size(0) #rem_acc
 
         print( n+1,'Time', 'Test acc', tst_acc)
 
