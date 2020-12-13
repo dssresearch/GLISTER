@@ -97,12 +97,15 @@ train_batch_size = 128
 
 def predict(model, X, Y):
 
-    if type(X) is np.ndarray:
+    '''if type(X) is np.ndarray:
         loader_te = DataLoader(CustomDataset_WithId(X, Y,transform=None),shuffle=False,\
             batch_size=1000)
     else: 
         loader_te =  DataLoader(CustomDataset_WithId(X.numpy(), Y, transform=None),\
-            shuffle=False, batch_size=1000)
+            shuffle=False, batch_size=1000)'''
+
+    loader_te = DataLoader(CustomDataset_WithId(X, Y,transform=None),shuffle=False,\
+            batch_size=1000)
 
     model.eval()
     P = torch.zeros(len(Y)).long()

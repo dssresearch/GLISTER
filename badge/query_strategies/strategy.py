@@ -98,12 +98,15 @@ class Strategy:
 
     def predict(self, X, Y):
 
-        if type(X) is np.ndarray:
+        '''if type(X) is np.ndarray:
             loader_te = DataLoader(self.handler(X, Y, transform=self.args['transformTest']),
                             shuffle=False, **self.args['loader_te_args'])
         else: 
             loader_te = DataLoader(self.handler(X.numpy(), Y, transform=self.args['transformTest']),
-                            shuffle=False, **self.args['loader_te_args'])
+                            shuffle=False, **self.args['loader_te_args'])'''
+
+        loader_te = DataLoader(self.handler(X, Y, transform=self.args['transformTest']),
+                    shuffle=False, **self.args['loader_te_args'])
 
         self.clf.eval()
         P = torch.zeros(len(Y)).long()
