@@ -8,7 +8,6 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from copy import deepcopy
 
-
 class Strategy:
     def __init__(self, X, Y, idxs_lb, net, handler, args):
         self.X = X
@@ -81,6 +80,8 @@ class Strategy:
         #optimizer = optim.Adam(self.clf.parameters(), lr = self.args['lr'], weight_decay=0)
         optimizer = optim.SGD(self.clf.parameters(), lr = self.args['lr'])
         idxs_train = np.arange(self.n_pool)[self.idxs_lb]
+        np.random.seed(42)
+        np.random.shuffle(idxs_train)
         loader_tr = DataLoader(self.handler(self.X[idxs_train], torch.Tensor(self.Y[idxs_train]), transform=self.args['transform']),
             shuffle=False, **self.args['loader_tr_args'])
    

@@ -288,6 +288,9 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     model =  model.apply(weight_reset).cuda()
     #print(model.linear2.weight)
     for n in range(no_select):
+        sub_idxs.sort()
+        np.random.seed(42)
+        np.random.shuffle(np.array(sub_idxs))
         loader_tr = DataLoader(CustomDataset_WithId(x_trn[sub_idxs], y_trn[sub_idxs], transform=None),batch_size=train_batch_size)
         model.train()
         for i in range(num_epochs):
