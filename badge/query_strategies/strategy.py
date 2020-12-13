@@ -85,7 +85,7 @@ class Strategy:
         loader_tr = DataLoader(self.handler(self.X[idxs_train], torch.Tensor(self.Y[idxs_train]), transform=self.args['transform']),
             shuffle=False, **self.args['loader_tr_args'])
    
-        epoch = 1
+        epoch = 0
         accCurrent = 0.
         while epoch < n_epoch: #accCurrent < 0.99 and 
             accCurrent = self._train(epoch, loader_tr, optimizer)

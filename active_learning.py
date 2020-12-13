@@ -290,8 +290,10 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
     for n in range(no_select):
         sub_idxs.sort()
         np.random.seed(42)
-        np.random.shuffle(np.array(sub_idxs))
-        loader_tr = DataLoader(CustomDataset_WithId(x_trn[sub_idxs], y_trn[sub_idxs], transform=None),batch_size=train_batch_size)
+        np_sub_idxs = np.array(sub_idxs)
+        np.random.shuffle(np_sub_idxs)
+        loader_tr = DataLoader(CustomDataset_WithId(x_trn[np_sub_idxs], y_trn[np_sub_idxs],\
+             transform=None),shuffle=False,batch_size=train_batch_size)
         model.train()
         for i in range(num_epochs):
             # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
