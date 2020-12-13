@@ -459,7 +459,7 @@ random_subset_idx = [x for x in start_idxs]
 
 
 # Random Run
-#rv1, rt1, rv2, rt2, rand_substrn_losses, rand_fulltrn_losses, rand_val_losses, idxs, rand_grads = train_model_taylor('Random',start_idxs)
+r_valacc, r_tstacc, r_timing = train_model_taylor('Random',start_idxs)
 
 # Facility Location Run
 #fv1, ft1, fv2, ft2, facloc_substrn_losses, facloc_fulltrn_losses, facloc_val_losses, facloc_idxs, facloc_grads = train_model_taylor(
@@ -501,6 +501,7 @@ plt.figure()
 #plt.plot(craig_timing, craig_tstacc,'g-' , label='CRAIG')
 plt.plot(mod_t_timing, mod_t_tstacc, 'orange', label='full training')
 plt.plot(t_val_timing, t_val_tstacc, 'b-', label='GLISTER')
+plt.plot(r_timing, r_tstacc, 'r', label='Random')
 
 plt.legend()
 plt.xlabel('Time')
@@ -517,7 +518,7 @@ plt.figure()
 #plt.plot(craig_timing, craig_valacc,'g-' , label='CRAIG')
 plt.plot(mod_t_timing, mod_t_valacc, 'orange', label='full training')
 plt.plot(t_val_timing, t_val_valacc, 'b-', label='GLISTER')
-
+plt.plot(r_timing, r_valacc, 'r', label='Random')
 plt.legend()
 plt.xlabel('Time')
 plt.ylabel('Validation accuracy')
