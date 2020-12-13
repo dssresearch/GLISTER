@@ -316,14 +316,14 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
                 accFinal += torch.sum((torch.max(out,1)[1] == y).float()).data.item()
                 loss.backward()
 
-                if (i % 50 == 0) and (accFinal < 0.2): # reset if not converging
-                    model =  model.apply(weight_reset).cuda()
-                    optimizer = optim.SGD(model.parameters(), lr = learning_rate)
-
                 # clamp gradients, just in case
                 for p in filter(lambda p: p.grad is not None, model.parameters()): p.grad.data.clamp_(min=-.1, max=.1)
 
                 optimizer.step()
+
+            if (i % 50 == 0) and (accFinal/len(loader_tr.dataset.X) < 0.2): # reset if not converging
+                model =  model.apply(weight_reset).cuda()
+                optimizer = optim.SGD(model.parameters(), lr = learning_rate)
 
             #if accFinal/len(loader_tr.dataset.X) >= 0.99:
             #    break
