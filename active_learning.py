@@ -514,6 +514,7 @@ plt.plot(x_axis, fva[plot_start_epoch:], 'pink', label='FacLoc',marker='o')
 plt.plot(x_axis, rand_t_va[plot_start_epoch:], 'k-', label='rand_reg_tay_v=val',marker='o')
 plt.plot(x_axis, facloc_reg_t_va[plot_start_epoch:], 'y', label='facloc_reg_tay_v=val',marker='o')
 #plt.plot(x_axis, ft_va[plot_start_epoch:], 'orange', label='NON-tay_v=val',marker='o')
+plt.plot(x_axis, dt_va[plot_start_epoch:], 'orange', label='Diversity One Step',marker='o')
 plt.plot(x_axis, bva[plot_start_epoch:], 'c', label='BADGE',marker='o')
 
 #plt.plot(x_axis, lo_va[plot_start_epoch:], 'm-', label='logit_tay_v=val')
@@ -540,6 +541,7 @@ plt.plot(x_axis, fta[plot_start_epoch:], 'pink', label='FacLoc',marker='o')
 plt.plot(x_axis, rand_t_ta[plot_start_epoch:], 'k-', label='rand_reg_tay_v=val',marker='o')
 plt.plot(x_axis, facloc_reg_t_ta[plot_start_epoch:], 'y', label='facloc_reg_tay_v=val',marker='o')
 #plt.plot(x_axis, ft_ta[plot_start_epoch:], 'orange', label='NON-tay_v=val',marker='o')
+plt.plot(x_axis, dt_ta[plot_start_epoch:], 'orange', label='Diversity One Step',marker='o')
 plt.plot(x_axis, bta[plot_start_epoch:], 'c', label='BADGE',marker='o')
 
 #plt.plot(x_axis, lo_ta[plot_start_epoch:], 'm-', label='logit_tay_v=val')
@@ -567,6 +569,7 @@ plt.plot(x_axis, fua[plot_start_epoch:], 'pink', label='FacLoc',marker='o')
 plt.plot(x_axis, rand_t_ua[plot_start_epoch:], 'k-', label='rand_reg_tay_v=val',marker='o')
 plt.plot(x_axis, facloc_reg_t_ua[plot_start_epoch:], 'y', label='facloc_reg_tay_v=val',marker='o')
 #plt.plot(x_axis, ft_ua[plot_start_epoch:], 'orange', label='NON-tay_v=val',marker='o')
+plt.plot(x_axis, dt_ua[plot_start_epoch:], 'orange', label='Diversity One Step',marker='o')
 plt.plot(x_axis, bua[plot_start_epoch:], 'c', label='BADGE',marker='o')
 
 #plt.plot(x_axis, lo_ua[plot_start_epoch:], 'm-', label='logit_tay_v=val')
@@ -589,7 +592,7 @@ print(exp_name, str(exp_start_time), file=logfile)
 print(data_name,":Budget = ", fraction, file=logfile)
 
 methods=["One Step Taylor",'Fac Loc Reg One Step','Rand Reg One Step','Facility Location','FASS',\
-'Random',"BADGE","Diver One Step"] #,"Full One Step" #'One step Perturbation'
+'Random',"BADGE","Diversity One Step"] #,"Full One Step" #'One step Perturbation'
 val_acc =[t_va,facloc_reg_t_va,rand_t_va,fva,kva,rva,bva,dt_va] #,ft_va
 tst_acc =[t_ta,facloc_reg_t_ta,rand_t_ta,fta,kta,rta,bta,dt_ta] #,ft_ta
 unlabel_acc =[t_ua,facloc_reg_t_ua,rand_t_ua,fua,kua,rua,bua,dt_ua] #,ft_ua
