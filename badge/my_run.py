@@ -136,7 +136,7 @@ def return_accuracies(start_idxs,NUM_ROUND,NUM_QUERY,epoch,learning_rate,datadir
     u_x_trn = x_trn[~idxs_lb]
     u_y_trn = y_trn[~idxs_lb]
     P = strategy.predict(u_x_trn, u_y_trn)
-    unlabled_acc[0] = 100.0 * P.eq(torch.tensor(u_y_trn)).sum().item() / len(u_y_trn)   
+    unlabled_acc[0] = 100.0 * P.eq(u_y_trn.cpu()).sum().item() / len(u_y_trn)   
 
     for rd in range(1, NUM_ROUND+1):
         print('Round {}'.format(rd), flush=True)
