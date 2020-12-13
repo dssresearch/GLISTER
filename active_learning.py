@@ -101,10 +101,10 @@ def predict(model, X, Y):
         loader_te = DataLoader(CustomDataset_WithId(X, Y,transform=None),shuffle=False,\
             batch_size=1000)
     else: 
-        loader_te =  DataLoader(CustomDataset_WithId(X.numpy(), Y, transform=None,\
+        loader_te =  DataLoader(CustomDataset_WithId(X.numpy(), Y, transform=None),\
             shuffle=False, batch_size=1000)
 
-    #model.eval()
+    model.eval()
     P = torch.zeros(len(Y)).long()
     with torch.no_grad():
         for batch_idx in list(loader_te.batch_sampler):
