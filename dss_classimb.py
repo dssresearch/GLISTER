@@ -12,7 +12,8 @@ import torch.optim as optim
 from matplotlib import pyplot as plt
 from models.simpleNN_net import *  # ThreeLayerNet
 from models.logistic_regression import LogisticRegNet
-from models.set_function_all import SetFunctionFacLoc, SetFunctionTaylor, SetFunctionBatch  # as SetFunction #SetFunctionCompare
+from models.set_function_all import SetFunctionFacLoc, SetFunctionBatch  # as SetFunction #SetFunctionCompare
+from models.set_function_grad_computation_taylor import Small_Glister_Linear_SetFunction_RModular as SetFunctionTaylor
 from models.set_function_craig import SetFunction2 as CRAIG
 from sklearn.model_selection import train_test_split
 from utils.custom_dataset import load_dataset_custom, load_mnist_cifar, write_knndata
@@ -31,16 +32,16 @@ fraction = float(sys.argv[3])
 num_epochs = int(sys.argv[4])
 select_every = int(sys.argv[5])
 feature = sys.argv[6]# 70
-warm_method = 0  # whether to use warmstart-onestep (1) or online (0)
+r = int(sys.argv[7])  # whether to use warmstart-onestep (1) or online (0)
 num_runs = 1  # number of random runs
 learning_rate = 0.05
-all_logs_dir = './results/LR/' + data_name + '/' + feature + '/' + str(fraction) + '/' + str(select_every)
+all_logs_dir = './results/LR/' + data_name + '/' + feature + '/' + str(fraction) + '/' + str(select_every) + '/' + str(r)
 print(all_logs_dir)
 subprocess.run(["mkdir", "-p", all_logs_dir])
 path_logfile = os.path.join(all_logs_dir, data_name + '.txt')
 logfile = open(path_logfile, 'w')
 exp_name = data_name + '_fraction:' + str(fraction) + '_epochs:' + str(num_epochs) + \
-           '_selEvery:' + str(select_every) + '_variant' + str(warm_method) + '_runs' + str(num_runs)
+           '_selEvery:' + str(select_every) + '_variant' + str(r) + '_runs' + str(num_runs)
 print(exp_name)
 exp_start_time = datetime.datetime.now()
 print("=======================================", file=logfile)
@@ -179,7 +180,15 @@ def train_model_craig(start_rand_idxs, bud, convex=True,every=False):
     setf = CRAIG(device, train_loader, True)
     # idxs = start_rand_idxs
     idxs, gammas = setf.lazy_greedy_max(bud, model)
+    run_time = 0
     for i in range(num_epochs):
+        start_time = time.process_time()
+        if not convex :
+            if not every and (i + 1) % select_every == 0:
+                idxs, gammas = setf.lazy_greedy_max(bud, model)
+            else:
+                idxs, gammas = setf.lazy_greedy_max(bud, model)
+        model.train()
         inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
         optimizer.zero_grad()
         scores = model(inputs)
@@ -187,6 +196,7 @@ def train_model_craig(start_rand_idxs, bud, convex=True,every=False):
         loss = torch.dot(torch.from_numpy(np.array(gammas)).to(device).type(torch.float), losses)
         loss.backward()
         optimizer.step()
+        run_time += (time.process_time() - start_time)
         with torch.no_grad():
             # val_in, val_t = x_val.to(device), y_val.to(device)
             val_outputs = model(x_val)
@@ -196,11 +206,6 @@ def train_model_craig(start_rand_idxs, bud, convex=True,every=False):
         substrn_losses[i] = losses.mean().item()
         fulltrn_losses[i] = full_trn_loss.item()
         val_losses[i] = val_loss.item()
-        if not convex :
-            if not every and (i + 1) % select_every == 0:
-                idxs, gammas = setf.lazy_greedy_max(bud, model)
-            else:
-                idxs, gammas = setf.lazy_greedy_max(bud, model)
     model.eval()
     with torch.no_grad():
         full_trn_out = model(x_trn)
@@ -228,7 +233,7 @@ def train_model_craig(start_rand_idxs, bud, convex=True,every=False):
     print("Validation Loss and Accuracy:", val_loss.item(), val_acc)
     print("Test Data Loss and Accuracy:", test_loss.item(), tst_acc)
     print('-----------------------------------')
-    return val_acc, tst_acc, val_loss.item(), test_loss.item(), substrn_losses, fulltrn_losses, val_losses, idxs
+    return val_acc, tst_acc, val_loss.item(), test_loss.item(), substrn_losses, fulltrn_losses, val_losses, idxs, run_time
 
 
 def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fac_loc_idx=None):
@@ -290,32 +295,9 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
     fulltrn_losses = np.zeros(num_epochs)
     val_losses = np.zeros(num_epochs)
     # idxs = start_rand_idxs
+    run_time = 0
     for i in range(num_epochs):
-        # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
-        inputs, targets = x_trn[idxs], y_trn[idxs]
-        optimizer.zero_grad()
-        scores = model(inputs)
-        loss = criterion(scores, targets)
-        temp1 = torch.autograd.grad(loss, model.parameters())
-        grad_value = torch.norm(torch.cat((temp1[0], temp1[1].view(-1, 1)) ,dim=1).flatten()).item()
-        optimizer.zero_grad()
-        scores = model(inputs)
-        loss = criterion(scores, targets)
-        loss.backward()
-        optimizer.step()
-
-        with torch.no_grad():
-            # val_in, val_t = x_val.to(device), y_val.to(device)
-            val_outputs = model(x_val)
-            val_loss = criterion(val_outputs, y_val)
-            full_trn_outputs = model(x_trn)
-            full_trn_loss = criterion(full_trn_outputs, y_trn)
-
-
-        substrn_losses[i] = loss.item()
-        fulltrn_losses[i] = full_trn_loss.item()
-        val_losses[i] = val_loss.item()
-
+        start_time = time.process_time()
         if i % print_every == 0:  # Print Training and Validation Loss
             print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss:', loss.item(), full_trn_loss.item(), val_loss.item())
 
@@ -339,9 +321,36 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
                 np.random.set_state(state)
 
             else:
-                new_idxs = setf_model.naive_greedy_max(bud, clone_dict)  # , grads_idxs
+                new_idxs = setf_model.naive_greedy_max(bud, clone_dict, r)  # , grads_idxs
                 idxs = new_idxs  # update the current set
             model.load_state_dict(cached_state_dict)
+        model.train()
+        # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
+        inputs, targets = x_trn[idxs], y_trn[idxs]
+        optimizer.zero_grad()
+        scores = model(inputs)
+        loss = criterion(scores, targets)
+        temp1 = torch.autograd.grad(loss, model.parameters())
+        grad_value = torch.norm(torch.cat((temp1[0], temp1[1].view(-1, 1)) ,dim=1).flatten()).item()
+        optimizer.zero_grad()
+        scores = model(inputs)
+        loss = criterion(scores, targets)
+        loss.backward()
+        optimizer.step()
+        run_time += (time.process_time() - start_time)
+        model.eval()
+        with torch.no_grad():
+            # val_in, val_t = x_val.to(device), y_val.to(device)
+            val_outputs = model(x_val)
+            val_loss = criterion(val_outputs, y_val)
+            full_trn_outputs = model(x_trn)
+            full_trn_loss = criterion(full_trn_outputs, y_trn)
+
+
+        substrn_losses[i] = loss.item()
+        fulltrn_losses[i] = full_trn_loss.item()
+        val_losses[i] = val_loss.item()
+
 
     # Calculate Final SubsetTrn, FullTrn, Val and Test Loss
     # Calculate Val and Test Accuracy
@@ -379,7 +388,7 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
     print("Validation Loss and Accuracy:", val_loss.item(), val_acc)
     print("Test Data Loss and Accuracy:", test_loss.item(), tst_acc)
     print('-----------------------------------')
-    return val_acc, tst_acc, val_loss.item(), test_loss.item(), substrn_losses, fulltrn_losses, val_losses, idxs, substrn_grads
+    return val_acc, tst_acc, val_loss.item(), test_loss.item(), substrn_losses, fulltrn_losses, val_losses, idxs, substrn_grads, run_time
 
 
 def train_model_mod_taylor(start_rand_idxs, bud, valid):
@@ -392,6 +401,7 @@ def train_model_mod_taylor(start_rand_idxs, bud, valid):
         print("Using:", torch.cuda.device_count(), "GPUs!")
         model = nn.DataParallel(model)
         cudnn.benchmark = True
+    run_time = 0
     model = model.to(device)
     idxs = start_rand_idxs
     criterion = nn.CrossEntropyLoss()
@@ -402,13 +412,16 @@ def train_model_mod_taylor(start_rand_idxs, bud, valid):
     val_losses = np.zeros(num_epochs)
     # idxs = start_rand_idxs
     for i in range(num_epochs):
+        start_time = time.process_time()
         # inputs, targets = x_trn[idxs].to(device), y_trn[idxs].to(device)
+        model.train()
         inputs, targets = x_trn, y_trn
         optimizer.zero_grad()
         scores = model(inputs)
         loss = criterion(scores, targets)
         loss.backward()
         optimizer.step()
+        run_time += (time.process_time() - start_time)
     model.eval()
     with torch.no_grad():
         full_trn_out = model(x_trn)
@@ -437,7 +450,7 @@ def train_model_mod_taylor(start_rand_idxs, bud, valid):
     print("Validation Loss and Accuracy:", val_loss.item(), val_acc)
     print("Test Data Loss and Accuracy:", test_loss.item(), tst_acc)
     print('-----------------------------------')
-    return val_acc, tst_acc, val_loss.item(), test_loss.item(), substrn_losses, fulltrn_losses, val_losses, idxs
+    return val_acc, tst_acc, val_loss.item(), test_loss.item(), substrn_losses, fulltrn_losses, val_losses, idxs, run_time
 
 
 start_idxs = np.random.choice(N, size=bud, replace=False)
@@ -445,27 +458,27 @@ random_subset_idx = [x for x in start_idxs]
 rand_prior_idxs = gen_rand_prior_indices(size=bud)
 # CRAIG Run
 craig_valacc, craig_tstacc, craig_valloss, craig_tstloss, craig_substrn_losses, craig_fulltrn_losses, \
-craig_val_losses, craig_subset_idxs = train_model_craig(start_idxs, bud, True,False)
+craig_val_losses, craig_subset_idxs, craig_time = train_model_craig(start_idxs, bud, True,False)
 
 # Random Run
-rv1, rt1, rv2, rt2, rand_substrn_losses, rand_fulltrn_losses, rand_val_losses, idxs, rand_grads = train_model_taylor('Random',
+rv1, rt1, rv2, rt2, rand_substrn_losses, rand_fulltrn_losses, rand_val_losses, idxs, rand_grads, rand_time = train_model_taylor('Random',
                                                                                                          start_idxs)
 
 # Random with prior Run
 if feature=='classimb':
     rpv1, rpt1, rpv2, rpt2, rand_prior_substrn_losses, rand_prior_fulltrn_losses, rand_prior_val_losses, prior_idxs, \
-    rand_prior_grads = train_model_taylor('Random with Prior',rand_prior_idxs)
+    rand_prior_grads, rand_prior_time = train_model_taylor('Random with Prior',rand_prior_idxs)
 
 # Facility Location Run
-fv1, ft1, fv2, ft2, facloc_substrn_losses, facloc_fulltrn_losses, facloc_val_losses, facloc_idxs, facloc_grads = train_model_taylor(
+fv1, ft1, fv2, ft2, facloc_substrn_losses, facloc_fulltrn_losses, facloc_val_losses, facloc_idxs, facloc_grads, facloc_time = train_model_taylor(
     'Facility Location', None, bud)
 
 # Online algo run
-t_val_valacc, t_val_tstacc, t_val_valloss, t_val_tstloss, tay_fval_substrn_losses, tay_fval_fulltrn_losses, tay_fval_val_losses, subset_idxs, tay_grads = train_model_taylor(
+t_val_valacc, t_val_tstacc, t_val_valloss, t_val_tstloss, tay_fval_substrn_losses, tay_fval_fulltrn_losses, tay_fval_val_losses, subset_idxs, tay_grads, tay_time = train_model_taylor(
     'Taylor Online', start_idxs, bud, True)
 
 # Facility Location OneStep Runs
-facloc_reg_t_val_valacc, facloc_reg_t_val_tstacc, facloc_reg_t_val_valloss, facloc_reg_t_val_tstloss, facloc_reg_tay_fval_substrn_losses, facloc_reg_tay_fval_fulltrn_losses, facloc_reg_tay_fval_val_losses, facloc_reg_subset_idxs, facloc_reg_grads = train_model_taylor(
+facloc_reg_t_val_valacc, facloc_reg_t_val_tstacc, facloc_reg_t_val_valloss, facloc_reg_t_val_tstloss, facloc_reg_tay_fval_substrn_losses, facloc_reg_tay_fval_fulltrn_losses, facloc_reg_tay_fval_val_losses, facloc_reg_subset_idxs, facloc_reg_grads, facloc_reg_time = train_model_taylor(
     'Facloc Regularized', start_idxs, bud, True, facloc_idxs)
 
 ## KnnSB selection with Flag = TRN and FLAG = VAL
@@ -474,16 +487,16 @@ knn_idxs_flag_val = perform_knnsb_selection(datadir, data_name, fraction, selUsi
 
 ## Training with KnnSB idxs with Flag = TRN and FLAG = VAL
 knn_valacc_flagtrn, knn_tstacc_flagtrn, knn_valloss_flagtrn, knn_tstloss_flagtrn, knn_ftrn_substrn_losses, knn_ftrn_fulltrn_losses,\
- knn_ftrn_val_losses, knn_ftrn_idxs, knn_ftrn_grads = train_model_taylor("KNNSB",knn_idxs_flag_trn)
+ knn_ftrn_val_losses, knn_ftrn_idxs, knn_ftrn_grads, knn_ftrn_time = train_model_taylor("KNNSB",knn_idxs_flag_trn)
 
 knn_valacc_flagval, knn_tstacc_flagval, knn_valloss_flagval, knn_tstloss_flagval, knn_fval_substrn_losses, knn_fval_fulltrn_losses,\
- knn_fval_val_losses, knn_fval_idxs, knn_fval_grads = train_model_taylor("KNNSB",knn_idxs_flag_val)
+ knn_fval_val_losses, knn_fval_idxs, knn_fval_grads, knn_fval_time = train_model_taylor("KNNSB",knn_idxs_flag_val)
 # Randomized Greedy Taylor OneStep Runs
-rand_t_val_valacc, rand_t_val_tstacc, rand_t_val_valloss, rand_t_val_tstloss, rand_tay_fval_substrn_losses, rand_tay_fval_fulltrn_losses, rand_tay_fval_val_losses, rand_subset_idxs, rand_reg_grads = train_model_taylor(
+rand_t_val_valacc, rand_t_val_tstacc, rand_t_val_valloss, rand_t_val_tstloss, rand_tay_fval_substrn_losses, rand_tay_fval_fulltrn_losses, rand_tay_fval_val_losses, rand_subset_idxs, rand_reg_grads, rand_reg_time = train_model_taylor(
     'Random Greedy', start_idxs, bud, True)
 
 # Full Training
-mod_t_val_valacc, mod_t_val_tstacc, mod_t_val_valloss, mod_t_val_tstloss, mod_tay_fval_substrn_losses, mod_tay_fval_fulltrn_losses, mod_tay_fval_val_losses, mod_subset_idxs = train_model_mod_taylor(start_idxs, bud, True)
+mod_t_val_valacc, mod_t_val_tstacc, mod_t_val_valloss, mod_t_val_tstloss, mod_tay_fval_substrn_losses, mod_tay_fval_fulltrn_losses, mod_tay_fval_val_losses, mod_subset_idxs, mod_time = train_model_mod_taylor(start_idxs, bud, True)
 
 
 plot_start_epoch = 0
@@ -573,23 +586,23 @@ plt.savefig(plt_file)
 plt.clf()
 
 print(data_name, ":Budget = ", fraction, file=logfile)
-print('---------------------------------------------------------------------', file=logfile)
-print('|Algo                            | Val Acc       |   Test Acc       |', file=logfile)
-print('| -------------------------------|:-------------:| ----------------:|', file=logfile)
-#print('*| Facility Location             |', fv1, '  | ', ft1, ' |', file=logfile)
-print('*| Supervised Facility Location with Validation=VAL     |', knn_valacc_flagval, '  | ', knn_tstacc_flagval, ' |', file=logfile)
-print('*| Supervised Facility Location with Validation=TRN     |', knn_valacc_flagtrn, '  | ', knn_tstacc_flagtrn, ' |', file=logfile)
-print('*| Taylor with Validation=VAL     |', t_val_valacc, '  | ', t_val_tstacc, ' |', file=logfile)
-print('*| Random Selection               |', rv1, '  | ', rt1, ' |', file=logfile)
+print('----------------------------------------------------------------------------------------', file=logfile)
+print('|Algo                            | Val Acc       |   Test Acc       |  Final Run Time  |', file=logfile)
+print('| -------------------------------|:-------------:|:----------------:|:-----------------:|', file=logfile)
+print('*| Facility Location             |', fv1, '  | ', ft1, ' |', facloc_time, '|', file=logfile)
+print('*| Supervised Facility Location with Validation=VAL     |', knn_valacc_flagval, '  | ', knn_tstacc_flagval, ' |', knn_fval_time, '|', file=logfile)
+print('*| Supervised Facility Location with Validation=TRN     |', knn_valacc_flagtrn, '  | ', knn_tstacc_flagtrn, ' |',  knn_ftrn_time, '|', file=logfile)
+print('*| Taylor with Validation=VAL     |', t_val_valacc, '  | ', t_val_tstacc, ' |',  tay_time, '|',file=logfile)
+print('*| Random Selection               |', rv1, '  | ', rt1, ' |', rand_time, ' |', file=logfile)
 if feature=='classimb':
-    print('*| Random Prior Selection               |', rpv1, '  | ', rpt1, ' |', file=logfile)
+    print('*| Random Prior Selection               |', rpv1, '  | ', rpt1, ' |', rand_prior_time, ' |', file=logfile)
 #print('*| CRAIG Selected every epoch               |', e_craig_valacc, '  | ', e_craig_tstacc, ' |', file=logfile)
-print('*| CRAIG Selection               |', craig_valacc, '  | ', craig_tstacc, ' |', file=logfile)
-print('*| Full Training               |', mod_t_val_valacc,'  | ', mod_t_val_tstacc,' |',file=logfile)
-print('*| random regularized Taylor after training               |', rand_t_val_valacc, '  | ', rand_t_val_tstacc, ' |',
+print('*| CRAIG Selection               |', craig_valacc, '  | ', craig_tstacc, ' |', craig_time, ' |', file=logfile)
+print('*| Full Training               |', mod_t_val_valacc,'  | ', mod_t_val_tstacc,' |', mod_time, ' |', file=logfile)
+print('*| random regularized Taylor after training               |', rand_t_val_valacc, '  | ', rand_t_val_tstacc, ' |', rand_reg_time, ' |',
       file=logfile)
 print('*| facloc regularizec Taylor after training               |', facloc_reg_t_val_valacc, '  | ',
-      facloc_reg_t_val_tstacc, ' |', file=logfile)
+      facloc_reg_t_val_tstacc, ' |', facloc_reg_time, ' |', file=logfile)
 print("\n", file=logfile)
 
 print("=========Random Results==============", file=logfile)

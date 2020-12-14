@@ -682,7 +682,6 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
         with torch.no_grad():
             out, l1 = self.model(x_trn, last=True)
             data = F.softmax(out, dim=1)
-        l1_grads = torch.zeros(x_trn.shape[0], embDim * self.num_classes).to(self.device)
         tmp_tensor = torch.zeros(x_trn.shape[0], self.num_classes).to(self.device)
         tmp_tensor.scatter_(1, y_trn.view(-1, 1), 1)
         outputs = tmp_tensor
@@ -703,7 +702,6 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
                 embDim = self.model.get_embedding_dim()
-                l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes * embDim).to(self.device)
                 l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
                 l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
 
@@ -722,7 +720,6 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes * embDim).to(self.device)
                 l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
                 l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
         self.grads_val_curr = torch.cat((l0_grads, l1_grads), dim=1).mean(dim=0).view(-1, 1)
