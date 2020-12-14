@@ -20,7 +20,7 @@ for dset in datasets:
                 for feat in feature:
                     for isOneStepWarm in warm_method:
                         args = ['python']
-                        args.append('new_dss.py')
+                        args.append('dss_classimb.py')
                         args.append(datadir + dset)
                         args.append(dset)
                         args.append(str(f))

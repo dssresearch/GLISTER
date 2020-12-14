@@ -266,11 +266,11 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
         setf_model = SetFunctionFacLoc(device, train_loader_greedy)
         idxs = setf_model.lazy_greedy_max(bud, model)
     elif func_name == 'Facloc Regularized':
-        setf_model = SetFunctionTaylor(x_trn, y_trn, x_val1, y_val1, valid, model,
-                                       criterion, criterion_nored, learning_rate, device)
+        setf_model = SetFunctionTaylor(x_trn, y_trn, x_val1, y_val1, model,
+                                       criterion, criterion_nored, learning_rate, device, num_cls)
     else:
-        setf_model = SetFunctionTaylor(x_trn, y_trn, x_val, y_val, valid, model,
-                                       criterion, criterion_nored, learning_rate, device)
+        setf_model = SetFunctionTaylor(x_trn, y_trn, x_val, y_val, model,
+                                       criterion, criterion_nored, learning_rate, device, num_cls)
 
     if func_name == 'Taylor Online':
         print("Starting Online OneStep Run with taylor on loss!")
@@ -298,8 +298,6 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
     run_time = 0
     for i in range(num_epochs):
         start_time = time.process_time()
-        if i % print_every == 0:  # Print Training and Validation Loss
-            print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss:', loss.item(), full_trn_loss.item(), val_loss.item())
 
         if ((i + 1) % select_every == 0) and func_name not in ['Facility Location', 'Random', 'Random with Prior','KNNSB']:
             substrn_grads.append(grad_value)
@@ -350,6 +348,9 @@ def train_model_taylor(func_name, start_rand_idxs=None, bud=None, valid=True, fa
         substrn_losses[i] = loss.item()
         fulltrn_losses[i] = full_trn_loss.item()
         val_losses[i] = val_loss.item()
+
+        if i % print_every == 0:  # Print Training and Validation Loss
+            print('Epoch:', i + 1, 'SubsetTrn,FullTrn,ValLoss:', loss.item(), full_trn_loss.item(), val_loss.item())
 
 
     # Calculate Final SubsetTrn, FullTrn, Val and Test Loss

@@ -1255,12 +1255,10 @@ class Small_Glister_Linear_SetFunction_RModular(object):
         with torch.no_grad():
             out, l1 = self.model(self.x_trn, last=True)
             data = F.softmax(out, dim=1)
-        l1_grads = torch.zeros(self.N_trn, embDim * self.num_classes).to(self.device)
-        tmp_tensor = torch.zeros(self.N_trn, self.num_classes).to(self.device)
+        tmp_tensor = torch.zeros(self.x_trn.shape[0], self.num_classes).to(self.device)
         tmp_tensor.scatter_(1, self.y_trn.view(-1, 1), 1)
         outputs = tmp_tensor
         l0_grads = data - outputs
-        # l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
         l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
         l1_grads = l0_expand * l1.repeat(1, self.num_classes)
         torch.cuda.empty_cache()
@@ -1281,7 +1279,7 @@ class Small_Glister_Linear_SetFunction_RModular(object):
                 l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
                 l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
                 torch.cuda.empty_cache()
-                self.grads_per_elem = torch.cat((l0_grads, l1_grads), dim=1)
+
 
         # populate the gradients in model params based on loss.
         elif grads_currX is not None:
@@ -1298,7 +1296,6 @@ class Small_Glister_Linear_SetFunction_RModular(object):
                 l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
                 l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
                 torch.cuda.empty_cache()
-                self.grads_per_elem = torch.cat((l0_grads, l1_grads), dim=1)
         self.grads_val_curr = torch.cat((l0_grads, l1_grads), dim=1).mean(dim=0).view(-1, 1)
 
     def eval_taylor_modular(self, grads):
@@ -1317,14 +1314,14 @@ class Small_Glister_Linear_SetFunction_RModular(object):
     # Same as before i.e full batch case! No use of dataloaders here!
     # Everything is abstracted away in eval call
     def naive_greedy_max(self, budget, theta_init, r=10):
-        start_time = time.time()
+        #start_time = time.time()
         self._compute_per_element_grads(theta_init)
-        end_time = time.time()
-        print("Per Element gradient computation time is: ", end_time - start_time)
-        start_time = time.time()
+        #end_time = time.time()
+        #print("Per Element gradient computation time is: ", end_time - start_time)
+        #start_time = time.time()
         self._update_grads_val(theta_init, first_init=True)
-        end_time = time.time()
-        print("Updated validation set gradient computation time is: ", end_time - start_time)
+        #end_time = time.time()
+        #print("Updated validation set gradient computation time is: ", end_time - start_time)
         # Dont need the trainloader here!! Same as full batch version!
         self.numSelected = 0
         grads_currX = []  # basically stores grads_X for the current greedy set X
@@ -1351,7 +1348,7 @@ class Small_Glister_Linear_SetFunction_RModular(object):
             else:  # If 1st selection, then just set it to bestId grads
                 for i in range(len(selected_indices)):
                     if i == 0:
-                        grads_currX = self.grads_per_elem[selected_indices[i]]
+                        grads_currX = self.grads_per_elem[selected_indices[i]].view(1, -1)
                     else:
                         grads_e = self.grads_per_elem[selected_indices[i]]
                         grads_currX += grads_e
