@@ -211,7 +211,7 @@ def train_model_craig(start_rand_idxs, bud):
     fulltrn_losses = np.zeros(num_epochs)
     val_losses = np.zeros(num_epochs)
     for i in range(0, num_epochs):
-        start_time = time()
+        start_time = time.time()
         print("selEpoch: %d, Starting Selection:" % i, str(datetime.datetime.now()))
         #if ((i) % select_every) == 0:
         cached_state_dict = copy.deepcopy(model.state_dict())
