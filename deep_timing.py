@@ -19,7 +19,7 @@ from models.resnet import ResNet18
 from utils.custom_dataset import load_mnist_cifar
 from torch.utils.data import random_split, SequentialSampler, BatchSampler, RandomSampler
 from torch.autograd import Variable
-from models.set_function_craig import DeepSetFunction as CRAIG
+from models.set_function_craig import PerClassDeepSetFunction as CRAIG
 import math
 
 def model_eval_loss(data_loader, model, criterion):

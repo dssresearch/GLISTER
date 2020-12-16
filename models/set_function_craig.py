@@ -309,19 +309,19 @@ class PerClassDeepSetFunction(object):
         dist = torch.exp(-1 * torch.pow(x - y, 2).sum(2))
         return dist
 
-    def compute_score(self, model_params):
+    def compute_score(self, model_params, idxs):
         self.model.load_state_dict(model_params)
         self.N = 0
         g_is = []
+
         batch_wise_indices = np.array(
-            [list(BatchSampler(SequentialSampler(np.arange(self.N_trn)), self.batch_size, drop_last=False))][0])
+            [list(BatchSampler(SequentialSampler(idxs), self.batch_size, drop_last=False))][0])
         with torch.no_grad():
             for batch_idx in batch_wise_indices:
                 inputs_i = torch.cat(
                     [self.trainset[x][0].view(-1, self.trainset[x][0].shape[0], self.trainset[x][0].shape[1],
-                                              self.trainset[x][0].shape[2]) for x
-                     in batch_idx], dim=0).type(torch.float)
-                target_i = torch.tensor([self.trainset[x][1] for x in batch_idx])
+                                              self.trainset[x][0].shape[2]) for x in idxs[batch_idx]], dim=0).type(torch.float)
+                target_i = torch.tensor([self.trainset[x][1] for x in idxs[batch_idx]])
                 inputs_i, target_i = inputs_i.to(self.device), target_i.to(self.device)
                 self.N += inputs_i.size()[0]
                 if not self.if_convex:
@@ -362,24 +362,22 @@ class PerClassDeepSetFunction(object):
         return kernel
 
     def lazy_greedy_max(self, budget, model_params):
-        class_dict = defaultdict(list)
-        for i in range(len(self.trainset)):
-            _, y = self.trainset[i]
-            if y in class_dict.keys():
-                class_dict[y] = class_dict[y].extend(i)
-            else:
-                class_dict[y] = [i]
-
-        for i in class_dict.keys():
-            self.compute_score(model_params)
-            kernel = self.get_similarity_kernel()
+        labels = self.trainset.dataset.targets[self.trainset.indices]
+        classes = len(labels.unique())
+        per_class_bud = int(budget / classes)
+        total_greedy_list = []
+        gammas = []
+        for i in range(classes):
+            idxs = torch.where(labels == i)[0]
+            self.compute_score(model_params, idxs)
             fl = apricot.functions.facilityLocation.FacilityLocationSelection(random_state=0, metric='precomputed',
-                                                                              n_samples=budget)
-            self.dist_mat = self.dist_mat * kernel
+                                                                              n_samples=per_class_bud)
             sim_sub = fl.fit_transform(self.dist_mat)
             greedyList = list(np.argmax(sim_sub, axis=1))
             gamma = self.compute_gamma(greedyList)
-        return greedyList, gamma
+            total_greedy_list.extend(idxs[greedyList])
+            gammas.extend(gamma)
+        return total_greedy_list, gammas
 
 
 class PerClassNonDeepSetFunction(object):
