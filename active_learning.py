@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 from models.simpleNN_net import * #ThreeLayerNet
 from models.logistic_regression import LogisticRegNet
-from models.set_function_act_learn import SetFunctionFacLoc, SetFunctionTaylor, SetFunctionBatch,\
+from models.set_function_act_learn import SetFunctionFacLoc, SetFunctionBatch,\
     SDReg_GlisterActLinear_SetFunction_Closed_Vect,Small_GlisterAct_Linear_SetFunction_Closed_Vect,\
     FacReg_GlisterActLinear_SetFunction_Closed_Vect #Small_GlisterAct_Linear_SetFunction_Closed
 from sklearn.model_selection import train_test_split
@@ -428,7 +428,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
         #t_ng_start = time.time()
 
         if func_name == 'Random Greedy':
-            new_idxs = setf_model.naive_greedy_max(curr_X_trn,rem_predict,int(0.9 * no_points), clone_dict)
+            new_idxs = setf_model.naive_greedy_max(curr_X_trn,rem_predict,x_trn[np_sub_idxs], y_trn[np_sub_idxs], int(0.9 * no_points), clone_dict)
             new_idxs = list(np.array(list(remainList))[new_idxs])
             
             remainList = remainList.difference(new_idxs)
@@ -490,7 +490,7 @@ def active_learning_taylor(func_name,start_rand_idxs=None, bud=None, valid=True,
             sub_idxs.extend(new_idxs)
 
         else: 
-            new_idxs = setf_model.naive_greedy_max(curr_X_trn, rem_predict, no_points, clone_dict)  # , grads_idxs
+            new_idxs = setf_model.naive_greedy_max(curr_X_trn, rem_predict, x_trn[np_sub_idxs], y_trn[np_sub_idxs], no_points, clone_dict)  # , grads_idxs
             new_idxs = np.array(list(remainList))[new_idxs]
             remainList = remainList.difference(new_idxs)
             sub_idxs.extend(new_idxs) 

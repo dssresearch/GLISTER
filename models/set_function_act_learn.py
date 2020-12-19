@@ -365,77 +365,79 @@ class Small_GlisterAct_Linear_SetFunction_Closed_Vect(object):
         self.num_classes = num_classes
         self.numSelected = 0
 
-    def _compute_per_element_grads(self, x_trn, y_trn, theta_init):
+    def _compute_per_element_grads(self, x_trn, y_trn, x_lbl, y_lbl, theta_init):
         self.model.load_state_dict(theta_init)
         embDim = self.model.get_embedding_dim()
         with torch.no_grad():
             out, l1 = self.model(x_trn, last=True)
             data = F.softmax(out, dim=1)
-        l1_grads = torch.zeros(x_trn.shape[0], embDim * self.num_classes).to(self.device)
         tmp_tensor = torch.zeros(x_trn.shape[0], self.num_classes).to(self.device)
         tmp_tensor.scatter_(1, y_trn.view(-1, 1), 1)
         outputs = tmp_tensor
         l0_grads = data - outputs
-        # l1_grads = torch.zeros(self.batch_size, self.num_classes, l1.shape[1]).to(self.device)
-        '''for i in range(x_trn.shape[0]):
-            for j in range(self.num_classes):
-                l1_grads[i][(j * embDim): ((j + 1) * embDim)] = l0_grads[i, j] * l1[i]'''
-
-        l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1) 
-        l1_grads = l0_expand * l1.repeat(1,self.num_classes)
-                
-        '''ind = torch.arange(0,embDim,device=self.device).repeat(x_trn.shape[0],1)
-        max_ind = ind + (y_trn*embDim)[:,None]
-
-        soft_max = -1*torch.repeat_interleave(data, l1.shape[1], dim=1) 
-        l1_grads = (l1.repeat(1,self.num_classes) * soft_max).scatter_add_(1, max_ind, l1)'''
-
+        l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
+        l1_grads = l0_expand * l1.repeat(1, self.num_classes)
         torch.cuda.empty_cache()
-        #print("Per Element Gradient Computation is Completed")
         self.grads_per_elem = torch.cat((l0_grads, l1_grads), dim=1)
+
+        with torch.no_grad():
+            out, l1 = self.model(x_lbl, last=True)
+            data = F.softmax(out, dim=1)
+        tmp_tensor = torch.zeros(x_lbl.shape[0], self.num_classes).to(self.device)
+        tmp_tensor.scatter_(1, y_lbl.view(-1, 1), 1)
+        outputs = tmp_tensor
+        l0_grads = data - outputs
+        l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
+        l1_grads = l0_expand * l1.repeat(1, self.num_classes)
+        l0_grads = l0_grads.sum(dim=0).view(1, -1)
+        l1_grads = l1_grads.sum(dim=0).view(1, -1)
+        torch.cuda.empty_cache()
+        self.prev_grads_sum = torch.cat((l0_grads, l1_grads), dim=1)
 
     def _update_grads_val(self, theta_init, grads_currX=None, first_init=False):
         self.model.load_state_dict(theta_init)
         self.model.zero_grad()
         if first_init:
+            # with torch.no_grad():
+            #     self.init_out, self.init_l1 = self.model(self.x_val, last=True)
+            #     scores = F.softmax(self.init_out, dim=1)
+            #     one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
+            #     one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
+            #     l0_grads = scores - one_hot_label
+            #     embDim = self.model.get_embedding_dim()
+            #     l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
+            #     l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
             with torch.no_grad():
+                embDim = self.model.get_embedding_dim()
                 self.init_out, self.init_l1 = self.model(self.x_val, last=True)
-                scores = F.softmax(self.init_out, dim=1)
+                out = torch.zeros(self.init_out.shape[0], self.num_classes).to(self.device)
+                for j in range(self.num_classes):
+                    out[:, j] = self.init_out[:, j] - (1 * self.eta * (torch.matmul(self.init_l1, self.prev_grads_sum[0][(j * embDim) +
+                                self.num_classes:((j + 1) * embDim) + self.num_classes].view(-1, 1)) + self.prev_grads_sum[0][j])).view(-1)
+                self.init_out = out
+                scores = F.softmax(out, dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                embDim = self.model.get_embedding_dim()
-                l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes * embDim).to(self.device)
-                #l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
-                '''for i in range(self.init_l1.shape[0]):
-                    for j in range(self.num_classes):
-                        l1_grads[i, (j * embDim):((j+1) * embDim)] = l0_grads[i, j] * self.init_l1[i]'''
-
-                l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1) 
-                l1_grads = l0_expand * self.init_l1.repeat(1,self.num_classes)
-                
+                l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
+                l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
         # populate the gradients in model params based on loss.
-        
+
         elif grads_currX is not None:
             # update params:
             with torch.no_grad():
                 embDim = self.model.get_embedding_dim()
                 out = torch.zeros(self.init_out.shape[0], self.num_classes).to(self.device)
                 for j in range(self.num_classes):
-                    out[:, j] = self.init_out[:, j] -(1 * self.eta * (torch.matmul(self.init_l1, grads_currX[0][(j*embDim)+self.num_classes:((j+1)*embDim)+self.num_classes].view(-1, 1)) + grads_currX[0][j])).view(-1)
-                
+                    out[:, j] = self.init_out[:, j] - (1 * self.eta * (torch.matmul(self.init_l1, grads_currX[0][(j * embDim) +
+                                self.num_classes:((j + 1) * embDim) + self.num_classes].view(-1, 1)) + grads_currX[0][j])).view(-1)
+
                 scores = F.softmax(out, dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes * embDim).to(self.device)
-                # l1_grads = torch.zeros(l1.shape[0], self.num_classes, l1.shape[1]).to(self.device)
-                '''for i in range(self.init_l1.shape[0]):
-                    for j in range(self.num_classes):
-                        l1_grads[i][(j * embDim):((j + 1) * embDim)] = l0_grads[i, j] * self.init_l1[i]'''
-                l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1) 
-                l1_grads = l0_expand * self.init_l1.repeat(1,self.num_classes)
-
+                l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
+                l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
         self.grads_val_curr = torch.cat((l0_grads, l1_grads), dim=1).mean(dim=0).view(-1, 1)
 
     def eval_taylor_modular(self, grads):
@@ -452,11 +454,11 @@ class Small_GlisterAct_Linear_SetFunction_Closed_Vect(object):
 
     # Same as before i.e full batch case! No use of dataloaders here!
     # Everything is abstracted away in eval call
-    def naive_greedy_max(self, x_trn, y_trn, budget, theta_init):
+    def naive_greedy_max(self, x_trn, y_trn, x_lbl, y_lbl, budget, theta_init):
         start_time = time.time()
         x_trn = x_trn.to(self.device)
         y_trn = y_trn.to(self.device)
-        self._compute_per_element_grads(x_trn, y_trn, theta_init)
+        self._compute_per_element_grads(x_trn, y_trn, x_lbl, y_lbl, theta_init)
         end_time = time.time()
         #print("Per Element gradient computation time is: ", end_time - start_time)
         start_time = time.time()
@@ -676,7 +678,7 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
                     j * size_b: j * size_b + g_j.size(0)] = self._distance(g_i, g_j)
 
 
-    def _compute_per_element_grads(self, x_trn, y_trn, theta_init):
+    def _compute_per_element_grads(self, x_trn, y_trn, x_lbl, y_lbl, theta_init):
         self.model.load_state_dict(theta_init)
         embDim = self.model.get_embedding_dim()
         with torch.no_grad():
@@ -691,20 +693,47 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
         torch.cuda.empty_cache()
         self.grads_per_elem = torch.cat((l0_grads, l1_grads), dim=1)
 
+        with torch.no_grad():
+            out, l1 = self.model(x_lbl, last=True)
+            data = F.softmax(out, dim=1)
+        tmp_tensor = torch.zeros(x_lbl.shape[0], self.num_classes).to(self.device)
+        tmp_tensor.scatter_(1, y_lbl.view(-1, 1), 1)
+        outputs = tmp_tensor
+        l0_grads = data - outputs
+        l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
+        l1_grads = l0_expand * l1.repeat(1, self.num_classes)
+        l0_grads = l0_grads.sum(dim=0).view(1, -1)
+        l1_grads = l1_grads.sum(dim=0).view(1, -1)
+        torch.cuda.empty_cache()
+        self.prev_grads_sum = torch.cat((l0_grads, l1_grads), dim=1)
+
     def _update_grads_val(self, theta_init, grads_currX=None, first_init=False):
         self.model.load_state_dict(theta_init)
         self.model.zero_grad()
         if first_init:
+            # with torch.no_grad():
+            #     self.init_out, self.init_l1 = self.model(self.x_val, last=True)
+            #     scores = F.softmax(self.init_out, dim=1)
+            #     one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
+            #     one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
+            #     l0_grads = scores - one_hot_label
+            #     embDim = self.model.get_embedding_dim()
+            #     l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
+            #     l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
             with torch.no_grad():
+                embDim = self.model.get_embedding_dim()
                 self.init_out, self.init_l1 = self.model(self.x_val, last=True)
-                scores = F.softmax(self.init_out, dim=1)
+                out = torch.zeros(self.init_out.shape[0], self.num_classes).to(self.device)
+                for j in range(self.num_classes):
+                    out[:, j] = self.init_out[:, j] - (1 * self.eta * (torch.matmul(self.init_l1, self.prev_grads_sum[0][(j * embDim) +
+                                self.num_classes:((j + 1) * embDim) + self.num_classes].view(-1, 1)) + self.prev_grads_sum[0][j])).view(-1)
+                self.init_out = out
+                scores = F.softmax(out, dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                embDim = self.model.get_embedding_dim()
                 l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
                 l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
-
         # populate the gradients in model params based on loss.
 
         elif grads_currX is not None:
@@ -742,11 +771,11 @@ class SDReg_GlisterActLinear_SetFunction_Closed_Vect(object):
 
     # Same as before i.e full batch case! No use of dataloaders here!
     # Everything is abstracted away in eval call
-    def naive_greedy_max(self, x_trn, y_trn, budget, theta_init):
+    def naive_greedy_max(self, x_trn, y_trn, x_lbl, y_lbl, budget, theta_init):
         start_time = time.time()
         x_trn = x_trn.to(self.device)
         y_trn = y_trn.to(self.device)
-        self._compute_per_element_grads(x_trn, y_trn, theta_init)
+        self._compute_per_element_grads(x_trn, y_trn, x_lbl, y_lbl, theta_init)
         self._compute_similarity_kernel()
         end_time = time.time()
         #print("Per Element gradient computation time is: ", end_time - start_time)
@@ -972,13 +1001,13 @@ class FacReg_GlisterActLinear_SetFunction_Closed_Vect(object):
             self.max_sim = torch.zeros(new_N, dtype=torch.float32)#.to(self.device)
 
 
-    def _compute_per_element_grads(self, x_trn, y_trn, theta_init):
+
+    def _compute_per_element_grads(self, x_trn, y_trn, x_lbl, y_lbl, theta_init):
         self.model.load_state_dict(theta_init)
         embDim = self.model.get_embedding_dim()
         with torch.no_grad():
             out, l1 = self.model(x_trn, last=True)
             data = F.softmax(out, dim=1)
-        l1_grads = torch.zeros(x_trn.shape[0], embDim * self.num_classes).to(self.device)
         tmp_tensor = torch.zeros(x_trn.shape[0], self.num_classes).to(self.device)
         tmp_tensor.scatter_(1, y_trn.view(-1, 1), 1)
         outputs = tmp_tensor
@@ -988,21 +1017,47 @@ class FacReg_GlisterActLinear_SetFunction_Closed_Vect(object):
         torch.cuda.empty_cache()
         self.grads_per_elem = torch.cat((l0_grads, l1_grads), dim=1)
 
+        with torch.no_grad():
+            out, l1 = self.model(x_lbl, last=True)
+            data = F.softmax(out, dim=1)
+        tmp_tensor = torch.zeros(x_lbl.shape[0], self.num_classes).to(self.device)
+        tmp_tensor.scatter_(1, y_lbl.view(-1, 1), 1)
+        outputs = tmp_tensor
+        l0_grads = data - outputs
+        l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
+        l1_grads = l0_expand * l1.repeat(1, self.num_classes)
+        l0_grads = l0_grads.sum(dim=0).view(1, -1)
+        l1_grads = l1_grads.sum(dim=0).view(1, -1)
+        torch.cuda.empty_cache()
+        self.prev_grads_sum = torch.cat((l0_grads, l1_grads), dim=1)
+
     def _update_grads_val(self, theta_init, grads_currX=None, first_init=False):
         self.model.load_state_dict(theta_init)
         self.model.zero_grad()
         if first_init:
+            # with torch.no_grad():
+            #     self.init_out, self.init_l1 = self.model(self.x_val, last=True)
+            #     scores = F.softmax(self.init_out, dim=1)
+            #     one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
+            #     one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
+            #     l0_grads = scores - one_hot_label
+            #     embDim = self.model.get_embedding_dim()
+            #     l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
+            #     l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
             with torch.no_grad():
+                embDim = self.model.get_embedding_dim()
                 self.init_out, self.init_l1 = self.model(self.x_val, last=True)
-                scores = F.softmax(self.init_out, dim=1)
+                out = torch.zeros(self.init_out.shape[0], self.num_classes).to(self.device)
+                for j in range(self.num_classes):
+                    out[:, j] = self.init_out[:, j] - (1 * self.eta * (torch.matmul(self.init_l1, self.prev_grads_sum[0][(j * embDim) +
+                                self.num_classes:((j + 1) * embDim) + self.num_classes].view(-1, 1)) + self.prev_grads_sum[0][j])).view(-1)
+                self.init_out = out
+                scores = F.softmax(out, dim=1)
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                embDim = self.model.get_embedding_dim()
-                l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes * embDim).to(self.device)
                 l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
                 l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
-
         # populate the gradients in model params based on loss.
 
         elif grads_currX is not None:
@@ -1018,7 +1073,6 @@ class FacReg_GlisterActLinear_SetFunction_Closed_Vect(object):
                 one_hot_label = torch.zeros(len(self.y_val), self.num_classes).to(self.device)
                 one_hot_label.scatter_(1, self.y_val.view(-1, 1), 1)
                 l0_grads = scores - one_hot_label
-                l1_grads = torch.zeros(self.init_l1.shape[0], self.num_classes * embDim).to(self.device)
                 l0_expand = torch.repeat_interleave(l0_grads, embDim, dim=1)
                 l1_grads = l0_expand * self.init_l1.repeat(1, self.num_classes)
         self.grads_val_curr = torch.cat((l0_grads, l1_grads), dim=1).mean(dim=0).view(-1, 1)
@@ -1039,11 +1093,11 @@ class FacReg_GlisterActLinear_SetFunction_Closed_Vect(object):
 
     # Same as before i.e full batch case! No use of dataloaders here!
     # Everything is abstracted away in eval call
-    def naive_greedy_max(self, x_trn, y_trn, budget, theta_init):
+    def naive_greedy_max(self, x_trn, y_trn, x_lbl, y_lbl, budget, theta_init):
         start_time = time.time()
         x_trn = x_trn.to(self.device)
         y_trn = y_trn.to(self.device)
-        self._compute_per_element_grads(x_trn, y_trn, theta_init)
+        self._compute_per_element_grads(x_trn, y_trn, x_lbl, y_lbl, theta_init)
         self._compute_similarity_kernel()
         end_time = time.time()
         #print("Per Element gradient computation time is: ", end_time - start_time)
