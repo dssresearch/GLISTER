@@ -4,11 +4,11 @@ import subprocess
 #data_name = sys.argv[2]
 
 #datadir = "C:\\Users\\krish\\OneDrive - The University of Texas at Dallas\\Documents\\GitHub\\GLISTER\\data\\"
-datadir = "../data/"
+datadir = "../Datasets/data/"
 fracs = [0.1]#, 0.2, 0.3, 0.4, 0.5]
 num_epochs = 200
 no_of_rounds = [10]  #
-datasets = ['sklearn-digits', 'dna','satimage','svmguide1', 'usps', 'ijcnn1']
+datasets = ['connect_4', 'ijcnn1', 'letter']
 feature = ['dss', 'classimb']
 
 
